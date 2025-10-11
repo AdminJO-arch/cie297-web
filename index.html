@@ -1,0 +1,294 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>CIE-297 | Monitoreo en Tiempo Real</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    :root{ --bg:#0b1320; --panel:#111a33; --line:#1e2b4f; --text:#e9eef7; --soft:#223055; --muted:#a5b3d1 }
+    *{ box-sizing:border-box }
+    body{ font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; margin:0; background:var(--bg); color:var(--text) }
+    header,footer{ padding:12px 16px; background:#0f1a30; display:flex; align-items:center; gap:12px }
+    header img{ height:48px }
+    main{ padding:16px; max-width:1200px; margin:0 auto }
+    .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin:12px 0 }
+    input,select,button,textarea{ padding:10px; border-radius:10px; border:1px solid #30426e; background:var(--bg); color:var(--text) }
+    button{ cursor:pointer }
+    .row{ display:flex; gap:12px; flex-wrap:wrap }
+    .col{ flex:1; min-width:280px }
+    .hidden{ display:none }
+    .grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px }
+    .stack{ display:flex; flex-direction:column; gap:16px }
+    .modal{ position:fixed; inset:0; background:#0009; display:none; align-items:center; justify-content:center; padding:16px }
+    .modal .box{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; max-width:420px; width:100% }
+    .pill{ font-size:11px; padding:2px 6px; border-radius:999px; border:1px solid var(--soft); color:var(--muted) }
+    table{ width:100%; border-collapse:collapse } th,td{ border-bottom:1px solid var(--soft); padding:8px; text-align:left }
+  </style>
+  <script src="config.js"></script>
+</head>
+<body>
+  <header>
+    <img src="assets/logo.png" alt="logo"/>
+    <h2>CIE-297 | Monitoreo en Tiempo Real</h2>
+  </header>
+  <main>
+    <!-- LANDING -->
+    <section id="landing" class="card">
+      <h3>Registro</h3>
+      <div class="row">
+        <div class="col">
+          <div class="row">
+            <select id="grado">
+              <option value="">Grado</option>
+              <option>GRAL</option><option>CNL</option><option>TCNL</option>
+              <option>MY</option><option>CAP</option><option>TTE</option><option>SBTTE</option>
+              <option>SOF</option><option>SGTO</option><option>SOLD</option>
+            </select>
+            <input id="especialidad" placeholder="Especialidad"/>
+          </div>
+          <div class="row">
+            <input id="nombres" placeholder="Nombres"/>
+            <input id="apellidos" placeholder="Apellidos"/>
+          </div>
+          <div class="row">
+            <input id="email" placeholder="Email"/>
+            <input id="password" type="password" placeholder="Contraseña"/>
+          </div>
+          <button id="btnRegister">Crear cuenta</button>
+        </div>
+        <div class="col" style="display:flex;align-items:center;justify-content:center">
+          <button id="openLogin">Iniciar sesión</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOGIN MODAL -->
+    <div id="loginModal" class="modal">
+      <div class="box">
+        <h3>Iniciar sesión</h3>
+        <input id="lemail" placeholder="Email"/>
+        <input id="lpassword" type="password" placeholder="Contraseña" style="margin-top:8px"/>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button id="btnLogin">Entrar</button>
+          <button id="closeLogin">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- USER DASHBOARD -->
+    <section id="userPanel" class="hidden">
+      <div class="grid">
+        <div class="stack">
+          <div class="card">
+            <h3>Área Operativa</h3>
+            <div id="mapBO" style="height:320px; border:1px dashed var(--soft); border-radius:12px;"></div>
+          </div>
+
+          <div class="card">
+            <h3>Órganos de búsqueda</h3>
+            <div class="row">
+              <div class="col"><label>Órgano</label><select id="organo"></select></div>
+              <div class="col"><label>Canal</label><select id="canal"></select></div>
+              <div class="col"><label>Lugar</label><select id="lugar"></select></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Misiones / Reportes rápidos</h3>
+            <div class="row">
+              <div class="col">
+                <label>Tipo</label>
+                <select id="tipo">
+                  <option value="REBASE">Rebasado</option>
+                  <option value="CAMBIO_LOC">Cambio de locación</option>
+                  <option value="SECUESTRO">Secuestro</option>
+                  <option value="OPERATIVO">Operativo en curso</option>
+                  <option value="PERDIDA_COM">Pérdida de comunicación</option>
+                  <option value="PALABRA_CLAVE">Palabra clave detectada</option>
+                  <option value="GEO_VIOLADA">Geocerca violada</option>
+                  <option value="INTERF_RF">Interferencia RF</option>
+                  <option value="MOV_ANOMALO">Movimiento anómalo</option>
+                  <option value="INCAUTACION_AUTOS">Incautación de autos</option>
+                  <option value="OTRA">Otra</option>
+                </select>
+              </div>
+              <div class="col"><label>Nivel</label><select id="nivel"><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></div>
+              <div class="col" id="incAutoWrap" style="display:none">
+                <label>Indicativo (incautación)</label>
+                <select id="indicInc"></select>
+              </div>
+              <div class="col"><label>&nbsp;</label><button id="btnGeo">Usar ubicación</button></div>
+            </div>
+            <label style="display:block;margin-top:8px">Descripción</label>
+            <textarea id="mensaje" rows="6" style="min-height:160px;width:100%" placeholder="Detallar lo ocurrido..."></textarea>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button id="btnEnviar">Enviar</button>
+              <button id="btnLogout">Cerrar sesión</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="row" style="justify-content:space-between;align-items:center">
+              <h3>Alertas</h3>
+              <span class="pill" id="alertsCount">0</span>
+            </div>
+            <div id="alertsList" style="max-height:540px;overflow:auto"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN PANEL -->
+    <section id="adminPanel" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3>Panel Administrador</h3>
+          <div style="display:flex;gap:8px">
+            <a id="pdfLink" href="#" target="_blank"><button>Exportar PDF</button></a>
+            <a id="csvLink" href="#" target="_blank"><button>Exportar CSV</button></a>
+            <button id="btnAdminLogout">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="stack">
+          <div class="card">
+            <h3>Área Operativa</h3>
+            <div id="mapBOAdmin" style="height:300px; border:1px dashed var(--soft); border-radius:12px;"></div>
+          </div>
+
+          <div class="card">
+            <h3>Órganos de búsqueda</h3>
+            <div class="row">
+              <div class="col"><label>Órgano</label><select id="organoA"></select></div>
+              <div class="col"><label>Canal</label><select id="canalA"></select></div>
+              <div class="col"><label>Lugar</label><select id="lugarA"></select></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Usuarios</h3>
+            <table id="usersTbl"><thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody></tbody></table>
+          </div>
+
+          <div class="card">
+            <h3>Bitácora de accesos</h3>
+            <table id="logTbl"><thead><tr><th>Fecha</th><th>Email</th><th>IP</th><th>UA</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <h3>Alertas (10 más recientes)</h3>
+            <table id="alertsTbl"><thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Usuario</th><th>Ubicación</th><th>Descripción</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer><small>© CIE-297 • Prototipo académico • Tiempo real</small></footer>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const API = (window.CIE297_API && window.CIE297_API.length>0) ? window.CIE297_API : "http://localhost:4000"
+    let token=null, role=null, geo=null
+
+    const ORG_LIST = ['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS']
+    const CANALES = ['BLANCO','ROJO','AZUL','AMARILLO','VERDE','ROSADO','GUINDO','CARMESI','NEGRO','KAKI','MARRON','TURQUESA','CELESTE','NARANJA']
+    const LUGARES = ['CUBA','HAWAI','BEIRUT','LOMAS']
+    const INDIC_INC = ['PETA','PLEBA','TRIMICO','PATINETA','FRUTAS','MOTOBOMBA','CEBADOR','TINEO','PINTURA NARANJA','PINTURA AZUL','PINTURA VERDE','PINTURA AMARILLA']
+
+    const qs = s=>document.querySelector(s)
+    const show = v => { qs('#landing').classList.toggle('hidden', v!=='landing'); qs('#userPanel').classList.toggle('hidden', v!=='user'); qs('#adminPanel').classList.toggle('hidden', v!=='admin') }
+    show('landing')
+
+    function fillSelect(id, list){ const s=qs(id); s.innerHTML=''; list.forEach(v=>{ const o=document.createElement('option'); o.textContent=v; s.appendChild(o) }) }
+    ;[['#organo',ORG_LIST],['#canal',CANALES],['#lugar',LUGARES],['#indicInc',INDIC_INC],['#organoA',ORG_LIST],['#canalA',CANALES],['#lugarA',LUGARES]]
+      .forEach(([id,list])=>fillSelect(id, list))
+
+    qs('#openLogin').onclick = ()=> qs('#loginModal').style.display='flex'
+    qs('#closeLogin').onclick = ()=> qs('#loginModal').style.display='none'
+
+    qs('#btnRegister').onclick = async ()=>{
+      const body={ grado:qs('#grado').value, especialidad:qs('#especialidad').value, nombres:qs('#nombres').value, apellidos:qs('#apellidos').value, email:qs('#email').value, password:qs('#password').value }
+      const r = await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      const j = await r.json(); alert(j.ok?'Registrado. Inicie sesión.':(j.error||'Error'))
+    }
+
+    qs('#btnLogin').onclick = async ()=>{
+      const r = await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:qs('#lemail').value,password:qs('#lpassword').value})})
+      const j = await r.json()
+      if(j.token){ token=j.token; role=j.role; qs('#loginModal').style.display='none'; if(role==='admin'){ show('admin'); initMap('mapBOAdmin'); loadAdmin(); } else { show('user'); initMap('mapBO'); initSocket(); loadAlertsFeed(); } }
+      else alert(j.error||'Error')
+    }
+
+    qs('#tipo').onchange = ()=>{ qs('#incAutoWrap').style.display = (qs('#tipo').value==='INCAUTACION_AUTOS') ? 'block' : 'none' }
+
+    function initMap(id){
+      const el = document.getElementById(id); if(!el || el.dataset.ready) return
+      const map = L.map(id, { zoomControl:true }).setView([-16.5, -64.7], 5)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18}).addTo(map)
+      el.dataset.ready="1"
+    }
+
+    function initSocket(){ const s = io(API); s.on('alert:new', d=>{ addAlertCard(d) }) }
+
+    // Geo
+    qs('#btnGeo').onclick = ()=> navigator.geolocation?.getCurrentPosition(p=>{ geo={lat:p.coords.latitude,lng:p.coords.longitude}; alert('Ubicación lista') }, e=>alert('No se pudo obtener ubicación'))
+
+    // Enviar alerta (usuario)
+    qs('#btnEnviar').onclick = async ()=>{
+      const extra = qs('#tipo').value==='INCAUTACION_AUTOS' ? ` | ${qs('#indicInc').value}` : ''
+      const r = await fetch(API+'/api/alerts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({tipo:qs('#tipo').value,mensaje:`[${qs('#organo').value} | ${qs('#canal').value} | ${qs('#lugar').value}] ${qs('#mensaje').value}${extra}`,nivel:qs('#nivel').value,lat:geo?.lat,lng:geo?.lng})})
+      const j = await r.json(); if(j.ok){ qs('#mensaje').value=''; alert('Enviado') } else alert('Error')
+    }
+
+    // --- Usuario: feed ---
+    function addAlertCard(a){
+      const wrap=qs('#alertsList')
+      const d=document.createElement('div'); d.className='card'
+      d.innerHTML=`<div style="display:flex;justify-content:space-between">
+          <div style="display:flex;gap:8px;align-items:center"><span class="pill">${(a.nivel||'MEDIA').toUpperCase()}</span><small>${a.created_at||''}</small></div>
+          <span class="pill">${a.tipo}</span>
+        </div>
+        <div style="margin-top:4px"><b>${a.grado||''} ${a.nombres||''} ${a.apellidos||''}</b></div>
+        <div style="color:var(--muted);margin-top:4px">Descripción: ${a.mensaje||''}</div>`
+      wrap.prepend(d); qs('#alertsCount').textContent = wrap.querySelectorAll('.card').length
+    }
+    function addSimCard(t){
+      const wrap=qs('#alertsList'); const d=document.createElement('div'); d.className='card'
+      const when = new Date(t.ts).toLocaleString('es-BO')
+      d.innerHTML=`<div style="display:flex;justify-content:space-between">
+          <div style="display:flex;gap:8px;align-items:center"><span class="pill">MEDIA</span><small>${when}</small></div>
+          <span class="pill">SIMULADO</span></div>
+        <div style="margin-top:4px"><b>${t.callsign}</b></div>
+        <div style="color:var(--muted);margin-top:4px">Descripción: ${t.status} @ ${t.lat.toFixed(3)}, ${t.lng.toFixed(3)}</div>`
+      wrap.prepend(d); qs('#alertsCount').textContent = wrap.querySelectorAll('.card').length
+    }
+
+    // --- Admin: tablas y export ---
+    async function authedGet(p){ const r = await fetch(API+p,{headers:{'Authorization':'Bearer '+token}}); return await r.json() }
+    function addAlertRow(a){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${a.id}</td><td>${a.created_at||''}</td><td>${(a.nivel||'').toUpperCase()}</td><td>${a.tipo}</td><td>${a.grado||''} ${a.nombres||''} ${a.apellidos||''}</td><td>${(a.lat&&a.lng)?(a.lat.toFixed(4)+', '+a.lng.toFixed(4)):''}</td><td>${a.mensaje||''}</td>`; qs('#alertsTbl tbody').prepend(tr) }
+    function trimAlertsTable(){ const tb=qs('#alertsTbl tbody'); const rows=[...tb.querySelectorAll('tr')]; while(rows.length>10){ rows.pop().remove() } }
+    async function reloadAlerts(){ const data=await authedGet('/api/alerts'); const tb=qs('#alertsTbl tbody'); tb.innerHTML=''; data.forEach(addAlertRow); trimAlertsTable() }
+    async function reloadUsers(){ const data=await authedGet('/api/users'); const tb=qs('#usersTbl tbody'); tb.innerHTML=''; data.forEach(u=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${u.id}</td><td>${u.grado||''} ${u.nombres||''} ${u.apellidos||''}</td><td>${u.email}</td><td>${u.role}</td><td>${u.active?'Activo':'Bloqueado'}</td><td>${u.active?`<button data-id="${u.id}" data-act="block">Bloquear</button>`:`<button data-id="${u.id}" data-act="unblock">Desbloquear</button>`}</td>`; tb.appendChild(tr) }); tb.onclick=async e=>{ const b=e.target.closest('button'); if(!b) return; await fetch(API+`/api/users/${b.getAttribute('data-id')}/${b.getAttribute('data-act')}`,{method:'POST',headers:{'Authorization':'Bearer '+token}}); reloadUsers() } }
+    async function reloadLog(){ const data=await authedGet('/api/access-log'); const tb=qs('#logTbl tbody'); tb.innerHTML=''; data.forEach(l=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${l.created_at}</td><td>${l.email||''}</td><td>${l.ip||''}</td><td>${l.ua||''}</td>`; tb.appendChild(tr) }) }
+    function initAdminSockets(){ const s=io(API); s.on('alert:new', a=>{ addAlertRow(a); trimAlertsTable() }) }
+    async function loadAdmin(){ await reloadAlerts(); await reloadUsers(); await reloadLog(); initAdminSockets(); qs('#pdfLink').href = API + '/api/alerts.pdf?auth=' + token; qs('#csvLink').href = API + '/api/alerts.csv?auth=' + token }
+
+    // Auto refresh 5 min
+    setInterval(()=>{ try{ if(!token) return; if(role==='admin'){ reloadAlerts(); reloadUsers(); reloadLog(); } }catch{} }, 300000)
+
+    // Logout
+    qs('#btnLogout').onclick = ()=>{ token=null; role=null; show('landing') }
+    qs('#btnAdminLogout').onclick = ()=>{ token=null; role=null; show('landing') }
+  </script>
+</body>
+</html>
