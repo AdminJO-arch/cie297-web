@@ -6,6 +6,15 @@
   <title>CIE-297 | Monitoreo en Tiempo Real</title>
   <link rel="icon" href="assets/logo.png"/>
 
+  <!-- Leaflet (mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Config de backend -->
+  <script defer src="config.js"></script>
+
   <style>
     :root{
       --bg:#0b1424;--card:#101b31;--soft:#12213b;--text:#e5ecff;--muted:#93a4c7;
@@ -31,7 +40,7 @@
     .row{display:flex;gap:10px;align-items:center}
     .col{display:flex;flex-direction:column;gap:6px}
     .control{width:100%;background:#0f1a30;border:1px solid var(--line);color:var(--text);padding:.55rem .6rem;border-radius:8px}
-    .table-wrap{overflow:auto;border:1px dashed var(--line);border-radius:10px;margin-top:8px}
+    .table-wrap{overflow:auto;border:1px dashed var(--line);border-radius:10px}
     table{width:100%;border-collapse:collapse}
     th,td{padding:.55rem .6rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
     thead th{background:#0f1a2e;color:#c7d3ff;font-weight:700}
@@ -42,131 +51,181 @@
     .chip--alta { background:#3b0d0d; border-color:var(--danger); color:#ff6b6b; }
     .chip--media{ background:#3a3000; border-color:var(--warn);   color:#ffd166; }
     .chip--baja { background:#062b0b; border-color:var(--ok);     color:#86efac; }
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
-    .modal .box{width:420px;max-width:92vw;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-    .title{font-weight:800;margin:0 0 8px 0}
+    #map{height:320px;border:1px dashed var(--line);border-radius:10px}
     @media (max-width:980px){ .g-2{grid-template-columns:1fr} }
+    .pill{display:inline-block;padding:.2rem .6rem;border:1px solid var(--line);border-radius:999px;background:#0f1a2e;margin:.15rem}
   </style>
 
-  <!-- Carga primero la URL del backend -->
-  <script src="config.js"></script>
-
   <script>
-    // URL base del backend desde config.js (sin / final). Respaldo por si no carga:
-    let API = (window.CIE297_API || '').replace(/\/+$/, '');
-    if (!API) API = "https://cie297-backend-1.onrender.com";
+  // ==================== UTIL & API WRAPPER ====================
+  let API = "";
+  document.addEventListener('DOMContentLoaded', () => {
+    API = (window.CIE297_API || "").replace(/\/+$/,''); // del config.js
+  });
 
-    // Tu backend en Render NO usa /api → prefijo vacío.
-    const API_PREFIX = ""; // si algún día expones /api, cámbialo por "/api"
+  const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
+  const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  const authHeaders=()=>({'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('token')||'')});
+  const U = path => API + path; // path ya trae /api/…
 
-    // Helper para construir rutas: U('/ruta') → API + PREFIX + '/ruta'
-    const U = (path) => API + API_PREFIX + path;
+  // lee JSON si el server devuelve JSON; si no, devuelve { _nonJSON: true, text, status }
+  async function toJSONorText(resp) {
+    const ct = resp.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return await resp.json();
+    const text = await resp.text();
+    return { _nonJSON: true, text, status: resp.status };
+  }
 
-    const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
-    const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
-    const authHeaders=()=>({'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('token')||'')});
+  const fmtDateTime = (iso) => {
+    const d = new Date(iso);
+    const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
+    const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
+    return `${y}-${m}-${da} ${hh}:${mm}:${ss}`;
+  };
+  function chipNivel(n){ n=(n||'').toUpperCase(); const e=document.createElement('span');
+    e.className='chip '+(n==='ALTA'?'chip--alta':n==='BAJA'?'chip--baja':'chip--media'); e.textContent=n; return e; }
 
-    const fmtDateTime = (iso) => {
-      const d = new Date(iso);
-      const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
-      const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'),ss=String(d.getSeconds()).padStart(2,'0');
-      return `${y}-${m}-${da} ${hh}:${mm}:${ss}`;
-    };
-    function chipNivel(n){ n=(n||'').toUpperCase(); const e=document.createElement('span');
-      e.className='chip '+(n==='ALTA'?'chip--alta':n==='BAJA'?'chip--baja':'chip--media'); e.textContent=n; return e; }
+  // decide si el usuario actual es admin para las rutas
+  function alertsPath(){ return (window._isAdmin ? '/admin/alerts' : '/alerts'); }
 
-    // ==== API (sin /api) =====
-    async function apiLogin(email,password){
-      const r=await fetch(U('/login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-      const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error login');
-      localStorage.setItem('token',j.token); window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j;
-    }
-    async function apiMe(){ const r=await fetch(U('/me'),{headers:authHeaders()}); if(!r.ok) return null; const j=await r.json(); window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j.user; }
-    async function apiCreateAccount(p){ const r=await fetch(U('/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error al registrar'); return j; }
-    async function apiSendReport(p){ const r=await fetch(U('/reports'),{method:'POST',headers:authHeaders(),body:JSON.stringify(p)}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error al enviar'); return j; }
-    async function apiGetAlerts(limit=10){ const r=await fetch(U(`/admin/alerts?limit=${limit}`),{headers:authHeaders()}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error listas'); return j.items||[]; }
-    async function apiGetAlertsByDate(day){ const r=await fetch(U(`/admin/alerts?date=${encodeURIComponent(day)}`),{headers:authHeaders()}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error fecha'); return j.items||[]; }
-    async function exportAdmin(day, kind){ const base= kind==='pdf'?'/admin/alerts/export/pdf':'/admin/alerts/export/csv';
-      const r=await fetch(U(`${base}?date=${encodeURIComponent(day)}`),{headers:authHeaders()}); const blob=await r.blob();
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(kind==='pdf'?`reporte_${day}.pdf`:`reporte_${day}.csv`); a.click(); URL.revokeObjectURL(a.href); }
+  // ==================== API CALLS ====================
+  async function apiLogin(email,password){
+    const r=await fetch(U('/login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Login HTTP ${j.status}` : (j?.message||'Error login'));
+    localStorage.setItem('token',j.token); window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j;
+  }
+  async function apiMe(){
+    const r=await fetch(U('/me'),{headers:authHeaders()});
+    const j=await toJSONorText(r);
+    if(!r.ok) return null;
+    window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j.user;
+  }
+  async function apiCreateAccount(p){
+    const r=await fetch(U('/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Registro HTTP ${j.status}` : (j?.message||'Error al registrar'));
+    return j;
+  }
+  async function apiSendReport(p){
+    const r=await fetch(U('/reports'),{method:'POST',headers:authHeaders(),body:JSON.stringify(p)});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Report HTTP ${j.status}` : (j?.message||'Error al enviar'));
+    return j;
+  }
+  async function apiGetAlerts(limit=10){
+    const r=await fetch(U(`${alertsPath()}?limit=${limit}`),{headers:authHeaders()});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Alerts HTTP ${j.status}` : (j?.message||'Error listas'));
+    return j.items||[];
+  }
+  async function apiGetAlertsByDate(day){
+    const r=await fetch(U(`${alertsPath()}?date=${encodeURIComponent(day)}`),{headers:authHeaders()});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Alerts HTTP ${j.status}` : (j?.message||'Error fecha'));
+    return j.items||[];
+  }
+  async function exportAdmin(day, kind){
+    const base = kind==='pdf'?'/admin/alerts/export/pdf':'/admin/alerts/export/csv';
+    const r=await fetch(U(`${base}?date=${encodeURIComponent(day)}`),{headers:authHeaders()});
+    if(!r.ok) { const t=await r.text(); throw new Error(`Export HTTP ${r.status}`); }
+    const blob=await r.blob(); const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=(kind==='pdf'?`reporte_${day}.pdf`:`reporte_${day}.csv`); a.click(); URL.revokeObjectURL(a.href);
+  }
+  async function apiAccessList(){
+    const r=await fetch(U('/admin/access'),{headers:authHeaders()});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Access HTTP ${j.status}` : (j?.message||'Error accesos'));
+    return j.items||[];
+  }
+  async function apiAccessBlock(id,block=true){
+    const r=await fetch(U(`/admin/access/${id}/${block?'block':'unblock'}`),{method:'POST',headers:authHeaders()});
+    const j=await toJSONorText(r);
+    if(!r.ok) throw new Error(j._nonJSON ? `Block HTTP ${j.status}` : (j?.message||'Error bloqueo'));
+    return j;
+  }
 
-    function render(view){
-      qsa('[data-view]').forEach(el=>el.classList.add('hidden'));
-      qs(`[data-view="${view}"]`).classList.remove('hidden');
-      if(view==='dashboard'||view==='admin'){ qs('#btnLogout').classList.remove('hidden'); } else { qs('#btnLogout').classList.add('hidden'); }
-      qs('#hello').textContent = window._me ? ' | '+(window._me.grado||'')+' '+(window._me.nombres||'') : '';
-    }
+  // ==================== RENDER HELPERS ====================
+  function render(view){
+    qsa('[data-view]').forEach(el=>el.classList.add('hidden'));
+    qs(`[data-view="${view}"]`).classList.remove('hidden');
+    if(view==='dashboard'||view==='admin'){ qs('#btnLogout').classList.remove('hidden'); } else { qs('#btnLogout').classList.add('hidden'); }
+    qs('#hello').textContent = window._me ? ' | '+(window._me.grado||'')+' '+(window._me.nombres||'') : '';
+  }
+  function paintLatest(targetSel, items){
+    const tb=qs(targetSel); tb.innerHTML='';
+    (items||[]).forEach(it=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${it.id??''}</td>
+        <td>${fmtDateTime(it.fecha||it.created_at)}</td>
+        <td data-chip></td>
+        <td>${esc(it.tipo||'')}</td>
+        <td>${esc(it.usuario||it.user||'')}</td>
+        <td>${(it.lat!=null&&it.lng!=null)?`${(+it.lat).toFixed(4)}, ${(+it.lng).toFixed(4)}`:''}</td>
+        <td>${esc(it.descripcion||'')}</td>`;
+      tr.querySelector('[data-chip]').appendChild(chipNivel(it.nivel));
+      tb.appendChild(tr);
+    });
+  }
 
-    function openLogin(){ qs('#loginModal').style.display='flex'; qs('#loginEmail').focus(); }
-    function closeLogin(){ qs('#loginModal').style.display='none'; }
-    async function doLogin(){
-      try{ await apiLogin(qs('#loginEmail').value.trim(),qs('#loginPass').value.trim());
-        closeLogin(); if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); }
-      }catch(e){ alert(e.message); }
-    }
-    async function createAccount(){
-      const payload={ grado:qs('#grado').value, especialidad:qs('#especialidad').value.trim(),
-        nombres:qs('#nombres').value.trim(), apellidos:qs('#apellidos').value.trim(),
-        email:qs('#email').value.trim(), password:qs('#password').value.trim() };
-      try{ await apiCreateAccount(payload); alert('Usuario creado, ahora inicia sesión.'); }catch(e){ alert(e.message); }
-    }
+  // ==================== LOGIN / REGISTRO ====================
+  function openLogin(){ qs('#loginModal').style.display='flex'; qs('#loginEmail').focus(); }
+  function closeLogin(){ qs('#loginModal').style.display='none'; }
+  async function doLogin(){
+    try{ await apiLogin(qs('#loginEmail').value.trim(),qs('#loginPass').value.trim());
+      closeLogin(); if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); }
+    }catch(e){ alert(e.message); }
+  }
+  async function createAccount(){
+    const payload={ grado:qs('#grado').value, especialidad:qs('#especialidad').value.trim(),
+      nombres:qs('#nombres').value.trim(), apellidos:qs('#apellidos').value.trim(),
+      email:qs('#email').value.trim(), password:qs('#password').value.trim() };
+    try{ await apiCreateAccount(payload); alert('Usuario creado, ahora inicia sesión.'); }catch(e){ alert(e.message); }
+  }
+  function logout(){ localStorage.removeItem('token'); window._me=null; window._isAdmin=false; stopSim(); render('landing'); }
 
-    function paintLatest(targetSel, items){
-      const tb=qs(targetSel); tb.innerHTML='';
-      (items||[]).forEach(it=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td>${it.id??''}</td>
-          <td>${fmtDateTime(it.fecha||it.created_at)}</td>
-          <td data-chip></td>
-          <td>${esc(it.tipo||'')}</td>
-          <td>${esc(it.usuario||'')}</td>
-          <td>${(it.lat!=null&&it.lng!=null)?`${(+it.lat).toFixed(4)}, ${(+it.lng).toFixed(4)}`:''}</td>
-          <td>${esc(it.descripcion||'')}</td>`;
-        tr.querySelector('[data-chip]').appendChild(chipNivel(it.nivel));
-        tb.appendChild(tr);
-      });
-    }
-    async function refreshLatest(){ const items=await apiGetAlerts(10); paintLatest('#listLatest',items); }
-    async function refreshAdmin(){ const items=await apiGetAlerts(10); paintLatest('#adminLatest',items); }
+  // ==================== REPORTES / SIMULADOR ====================
+  function nivelAleatorio(){ const n=['ALTA','MEDIA','BAJA'], p=[0.25,0.5,0.25];
+    let r=Math.random(),acc=0; for(let i=0;i<n.length;i++){acc+=p[i]; if(r<=acc) return n[i];} return 'MEDIA'; }
+  function startSim(){ stopSim();
+    window._sim=setInterval(async ()=>{ try{
+        const nivel=nivelAleatorio();
+        const tipos=['SIMULADO','OBSERVACION','INTERFERENCIA','MOVIMIENTO','OTROS'];
+        const tipo=tipos[Math.floor(Math.random()*tipos.length)];
+        const lat=-16.6+Math.random(), lng=-68.2+Math.random();
+        const descripcion= nivel==='ALTA'?'Evento crítico (simulado)': nivel==='BAJA'?'Notificación menor (simulado)':'Actividad observada (simulado)';
+        await apiSendReport({tipo,nivel,descripcion,lat,lng,sim:true});
+        if(window._isAdmin) refreshAdmin(); else refreshLatest();
+      }catch(e){ /* ignorar si no hay token */ } }, 5000);
+  }
+  function stopSim(){ if(window._sim){ clearInterval(window._sim); window._sim=null; } }
+  async function sendQuick(){
+    const tipo=qs('#tipo').value, nivel=qs('#nivel').value, msg=qs('#mensaje').value||'', libre=qs('#descripcion').value||'';
+    const descripcion = msg ? `[${msg}] ${libre}` : libre;
+    let lat=qs('#lat').value?+qs('#lat').value:null, lng=qs('#lng').value?+qs('#lng').value:null;
+    try{ await apiSendReport({tipo,nivel,descripcion,lat,lng}); alert('Reporte enviado');
+      qs('#descripcion').value=''; if(window._isAdmin) refreshAdmin(); else refreshLatest(); } catch(e){ alert(e.message); }
+  }
+  function useLocation(){
+    if(!navigator.geolocation) return alert('Geolocalización no soportada');
+    navigator.geolocation.getCurrentPosition(p=>{
+      qs('#lat').value=p.coords.latitude.toFixed(6); qs('#lng').value=p.coords.longitude.toFixed(6);
+    },()=>alert('No se pudo obtener ubicación'),{enableHighAccuracy:true,timeout:7000});
+  }
 
-    function nivelAleatorio(){ const n=['ALTA','MEDIA','BAJA'], p=[0.25,0.5,0.25];
-      let r=Math.random(),acc=0; for(let i=0;i<n.length;i++){acc+=p[i]; if(r<=acc) return n[i];} return 'MEDIA'; }
-    function startSim(){ stopSim();
-      window._sim=setInterval(async ()=>{ try{
-          const nivel=nivelAleatorio();
-          const tipos=['SIMULADO','OBSERVACION','INTERFERENCIA','MOVIMIENTO','OTROS'];
-          const tipo=tipos[Math.floor(Math.random()*tipos.length)];
-          const lat=-16.6+Math.random(), lng=-68.2+Math.random();
-          const descripcion= nivel==='ALTA'?'Evento crítico (simulado)': nivel==='BAJA'?'Notificación menor (simulado)':'Actividad observada (simulado)';
-          await apiSendReport({tipo,nivel,descripcion,lat,lng,sim:true});
-          if(window._isAdmin) refreshAdmin(); else refreshLatest();
-        }catch(e){} }, 5000);
-    }
-    function stopSim(){ if(window._sim){ clearInterval(window._sim); window._sim=null; } }
+  // ==================== ADMIN ====================
+  async function refreshLatest(){ try{ const items=await apiGetAlerts(10); paintLatest('#listLatest',items);}catch(e){} }
+  async function refreshAdmin(){ try{ const items=await apiGetAlerts(10); paintLatest('#adminLatest',items);}catch(e){} }
 
-    async function sendQuick(){
-      const tipo=qs('#tipo').value, nivel=qs('#nivel').value, msg=qs('#mensaje').value||'', libre=qs('#descripcion').value||'';
-      const descripcion = msg ? `[${msg}] ${libre}` : libre;
-      let lat=qs('#lat').value?+qs('#lat').value:null, lng=qs('#lng').value?+qs('#lng').value:null;
-      try{ await apiSendReport({tipo,nivel,descripcion,lat,lng}); alert('Reporte enviado');
-        qs('#descripcion').value=''; if(window._isAdmin) refreshAdmin(); else refreshLatest(); } catch(e){ alert(e.message); }
-    }
-    function useLocation(){
-      if(!navigator.geolocation) return alert('Geolocalización no soportada');
-      navigator.geolocation.getCurrentPosition(p=>{
-        qs('#lat').value=p.coords.latitude.toFixed(6); qs('#lng').value=p.coords.longitude.toFixed(6);
-      },()=>alert('No se pudo obtener ubicación'),{enableHighAccuracy:true,timeout:7000});
-    }
-    async function initUser(){ startSim(); await refreshLatest(); }
-    async function initAdmin(){ startSim(); await refreshAdmin(); }
-    function logout(){ localStorage.removeItem('token'); window._me=null; window._isAdmin=false; stopSim(); render('landing'); }
-
-    async function verTodas(){
-      const r=await fetch(U('/admin/alerts?limit=2000'),{headers:authHeaders()}); const j=await r.json();
+  async function verTodas(){
+    try{
+      const r=await fetch(U('/admin/alerts?limit=2000'),{headers:authHeaders()});
+      const j=await toJSONorText(r);
+      if(!r.ok) throw new Error(j._nonJSON ? `HTTP ${j.status}` : (j?.message||'Error'));
       const items=(j.items||[]).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
       const groups=items.reduce((acc,it)=>{ const d=new Date(it.fecha||it.created_at);
-        const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; (acc[key] ||= []).push(it); return acc; },{});
+        const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; (acc[k] ||= []).push(it); return acc; },{});
       const days=Object.keys(groups).sort().reverse();
       const pnl=qs('#panelTodas'); pnl.classList.remove('hidden');
       pnl.innerHTML=days.map(day=>{
@@ -186,29 +245,81 @@
                   <thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Usuario</th><th>Ubicación</th><th>Descripción</th></tr></thead>
                   <tbody>${rows}</tbody></table></div>`;
       }).join('');
-    }
-    function onExport(ev){
-      const btn=ev.target.closest('[data-exp]'); if(!btn) return;
-      exportAdmin(btn.dataset.day, btn.dataset.exp);
-    }
+    }catch(e){ alert(e.message); }
+  }
+  function onExport(ev){
+    const btn=ev.target.closest('[data-exp]'); if(!btn) return;
+    exportAdmin(btn.dataset.day, btn.dataset.exp).catch(err=>alert(err.message));
+  }
 
-    window.addEventListener('DOMContentLoaded', async ()=>{
-      qs('#btnOpenLogin').addEventListener('click', openLogin);
-      qs('#btnCloseLogin').addEventListener('click', closeLogin);
-      qs('#btnLogin').addEventListener('click', doLogin);
-      qs('#btnCreate').addEventListener('click', createAccount);
-      qs('#btnSend').addEventListener('click', sendQuick);
-      qs('#btnUseLocation').addEventListener('click', useLocation);
-      qs('#btnLogout').addEventListener('click', logout);
-      qs('#btnVerTodas').addEventListener('click', verTodas);
-      qs('#panelTodas').addEventListener('click', onExport);
+  async function loadAccess(){
+    try{
+      const items=await apiAccessList();
+      const tb=qs('#tbAccess'); tb.innerHTML='';
+      items.forEach(it=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td>${it.id}</td><td>${esc(it.email||'')}</td><td>${esc(it.ip||'')}</td>
+          <td>${fmtDateTime(it.fecha||it.created_at)}</td>
+          <td>${it.bloqueado?'BLOQUEADO':'OK'}</td>
+          <td><button class="btn btn-secondary" data-block="${it.id}" data-flag="${it.bloqueado?0:1}">
+            ${it.bloqueado?'Desbloquear':'Bloquear'}</button></td>`;
+        tb.appendChild(tr);
+      });
+    }catch(e){ /* si no hay endpoint, lo ignoramos */ }
+  }
+  function onAccess(ev){
+    const b=ev.target.closest('[data-block]'); if(!b) return;
+    const id=b.dataset.block, block = (b.dataset.flag==='1');
+    apiAccessBlock(id, block).then(loadAccess).catch(err=>alert(err.message));
+  }
 
-      const me=await apiMe();
-      if(me){ if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); } }
-      else{ render('landing'); }
+  // ==================== MAPA & IEC-SAT ====================
+  let map, markersLayer;
+  function initMap(){
+    map = L.map('map').setView([-16.5,-68.15], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom: 18, attribution:'© OpenStreetMap'
+    }).addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+  }
 
-      setInterval(()=>{ if(window._isAdmin) refreshAdmin(); else refreshLatest(); }, 15000);
-    });
+  function fillIEC(){
+    const lugares = [
+      "ORURO — HAWAI","CHALLAPATA — CUBA","TACAWA — BEIRUT","CARRETERA ORURO CHALLAPATA — LOMAS"
+    ];
+    const canales = ["BLANCO","ROJO","AZUL","AMARILLO","VERDE","ROSADO","GUINDO","CARMESI","NEGRO","KAKI","MARRON","TURQUESA","CELESTE","NARANJA"];
+    qs('#iecLugares').innerHTML = lugares.map(x=>`<span class="pill">${esc(x)}</span>`).join('');
+    qs('#iecCanales').innerHTML = canales.map(x=>`<span class="pill">${esc(x)}</span>`).join('');
+  }
+
+  // ==================== BOOT ====================
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    // botones
+    qs('#btnOpenLogin').addEventListener('click', openLogin);
+    qs('#btnCloseLogin').addEventListener('click', closeLogin);
+    qs('#btnLogin').addEventListener('click', doLogin);
+    qs('#btnCreate').addEventListener('click', createAccount);
+    qs('#btnSend').addEventListener('click', sendQuick);
+    qs('#btnUseLocation').addEventListener('click', useLocation);
+    qs('#btnLogout').addEventListener('click', logout);
+    qs('#btnVerTodas').addEventListener('click', verTodas);
+    qs('#panelTodas').addEventListener('click', onExport);
+    qs('#tblAccess').addEventListener('click', onAccess);
+
+    fillIEC();
+    initMap();
+
+    const me=await apiMe(); // si hay token
+    if(me){ if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); } }
+    else{ render('landing'); }
+
+    // refresco periódico + simulación
+    setInterval(()=>{ if(window._isAdmin) refreshAdmin(); else refreshLatest(); }, 15000);
+  });
+
+  async function initUser(){ startSim(); await refreshLatest(); }
+  async function initAdmin(){ startSim(); await refreshAdmin(); await loadAccess(); }
   </script>
 </head>
 <body>
@@ -261,17 +372,20 @@
     <section class="grid g-2 hidden" data-view="dashboard">
       <div class="card">
         <h3>Área Operativa</h3>
-        <div class="table-wrap" style="height:320px;display:flex;align-items:center;justify-content:center;border-style:dashed">
-          <div class="muted">Mapa (Leaflet) — Bolivia</div>
-        </div>
+        <div id="map"></div>
         <div class="muted" style="margin-top:6px">
-          Leyenda: <span class="chip chip--baja">BAJA</span> <span class="chip chip--media">MEDIA</span> <span class="chip chip--alta">ALTA</span>
+          Leyenda:
+          <span class="chip chip--baja">BAJA</span>
+          <span class="chip chip--media">MEDIA</span>
+          <span class="chip chip--alta">ALTA</span>
         </div>
       </div>
 
       <aside class="card">
         <h3>Órganos de búsqueda</h3>
-        <div class="muted">Se listan con claves IEC-SAT (simulado)</div>
+        <div class="muted">Claves IEC-SAT</div>
+        <div style="margin-top:6px"><b>Lugares / Indicativos</b><div id="iecLugares"></div></div>
+        <div style="margin-top:6px"><b>Códigos de canal (colores)</b><div id="iecCanales"></div></div>
       </aside>
 
       <div class="card" style="grid-column:1 / -1">
@@ -334,7 +448,7 @@
 
     <!-- Administrador -->
     <section class="grid g-2 hidden" data-view="admin">
-      <div class="card">
+      <div class="card" style="grid-column:1 / -1">
         <div class="row" style="justify-content:space-between;align-items:center">
           <h3>Alertas (10 más recientes)</h3>
           <div class="row" style="gap:8px">
@@ -350,18 +464,31 @@
         </div>
         <div id="panelTodas" class="hidden" style="margin-top:10px"></div>
       </div>
+
       <aside class="card">
         <h3>Órganos de búsqueda</h3>
-        <div class="muted">Claves IEC-SAT (simulado)</div>
+        <div class="muted">Claves IEC-SAT</div>
+        <div style="margin-top:6px"><b>Lugares / Indicativos</b><div id="iecLugares" class="muted"></div></div>
+        <div style="margin-top:6px"><b>Códigos de canal (colores)</b><div id="iecCanales" class="muted"></div></div>
       </aside>
+
+      <div class="card" style="grid-column:1 / -1">
+        <h3>Bitácora de accesos</h3>
+        <div class="table-wrap">
+          <table id="tblAccess">
+            <thead><tr><th>ID</th><th>Email</th><th>IP</th><th>Fecha</th><th>Estado</th><th>Acción</th></tr></thead>
+            <tbody id="tbAccess"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
   </div>
 
   <!-- Modal de login -->
-  <div id="loginModal" class="modal">
-    <div class="box">
-      <div class="title">Iniciar sesión</div>
+  <div id="loginModal" class="modal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50">
+    <div class="box" style="width:420px;max-width:92vw;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px">
+      <div class="title" style="font-weight:800;margin:0 0 8px 0">Iniciar sesión</div>
       <div class="col" style="gap:8px">
         <input id="loginEmail" class="control" placeholder="email">
         <input id="loginPass" type="password" class="control" placeholder="contraseña">
@@ -375,4 +502,3 @@
 
 </body>
 </html>
-
