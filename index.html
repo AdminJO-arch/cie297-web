@@ -1,480 +1,344 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>CIE-297 | Monitoreo en Tiempo Real</title>
-<link rel="icon" href="assets/logo.png"/>
-<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
-<style>
-:root{
-  --bg:#0b1424;--card:#101b31;--soft:#12213b;--text:#e5ecff;--muted:#93a4c7;
-  --ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;--line:rgba(255,255,255,.08);
-}
-*{box-sizing:border-box} html,body{height:100%}
-body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;
-  color:var(--text);background:var(--bg)}
-a{color:#8ab4ff;text-decoration:none}
-.header{display:flex;gap:12px;align-items:center;padding:12px 18px;
-  background:#081225;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
-.header img{width:34px;height:34px;border-radius:6px}
-.header h1{font-size:18px;margin:0;font-weight:800}
-.btn{display:inline-flex;gap:8px;align-items:center;padding:.6rem 1rem;
-  border-radius:10px;border:1px solid var(--line);background:var(--soft);color:var(--text);cursor:pointer}
-.btn:hover{filter:brightness(1.05)}
-.btn-danger{background:#2b0f14;border-color:#3b1117;color:#ffb4b4}
-.btn-ok{background:#0f2b1a;border-color:#174129;color:#b8ffd1}
-.grid{display:grid;gap:16px;grid-template-columns:1.1fr .9fr;max-width:1200px;margin:22px auto;padding:0 16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
-.card h3{margin:0 0 10px 0}
-.row{display:flex;gap:10px;align-items:center}
-select,input,textarea{width:100%;background:#0f1a31;border:1px solid var(--line);
-  color:var(--text);border-radius:10px;padding:10px}
-.badge{display:inline-flex;align-items:center;gap:6px;font-weight:700;border-radius:999px;border:1px solid var(--line);padding:.35rem .8rem}
-.badge.low{background:#0a2b19;color:#baf7c8}
-.badge.mid{background:#2b250a;color:#ffe59b}
-.badge.high{background:#2b0f10;color:#ffc1c1}
-.badge.s{background:#0f1a31}
-.table{width:100%;border-collapse:collapse}
-.table th,.table td{border-top:1px solid var(--line);padding:.65rem;text-align:left}
-.legend{display:flex;gap:10px;margin-top:8px}
-.legend .chip{padding:.25rem .6rem;border-radius:999px;border:1px solid var(--line);font-weight:700}
-.legend .low{background:#0a2b19;color:#a7f3d0}
-.legend .mid{background:#2b250a;color:#fde68a}
-.legend .high{background:#2b0f10;color:#fecaca}
-.topbar{display:flex;justify-content:flex-end;gap:10px;margin:6px 16px}
-.hidden{display:none !important}
-footer{max-width:1200px;margin:12px auto 30px;padding:0 16px;color:var(--muted)}
-/* Access panel */
-.access{max-width:1200px;margin:20px auto;padding:0 16px}
-.access .panel{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.access .panel .col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
-.modal .box{width:520px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
-.modal h3{margin-top:0}
-/* Org list */
-.unit{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#0f1a31}
-.unit .left{display:flex;flex-direction:column;gap:4px}
-.unit .name{font-weight:800}
-.unit .meta{color:#a1b2d5;font-size:12px}
-.map{height:310px;border:1px dashed var(--line);border-radius:10px}
-.small{font-size:12px;color:#8aa0c7}
-.right{display:flex;justify-content:flex-end}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CIE-297 | Monitoreo en Tiempo Real</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root{
+      --bg:#0b1424;--card:#101b31;--soft:#12213b;--text:#e5ecff;--muted:#93a4c7;
+      --line:rgba(255,255,255,.08);
+      --hi:#ef4444;--med:#f59e0b;--lo:#22c55e;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    img{max-width:100%}
+    .brand{display:flex;gap:.75rem;align-items:center;padding:.75rem 1rem;background:#0b1424;border-bottom:1px solid var(--line)}
+    .brand img{width:34px;height:34px}
+    .brand h1{margin:0;font-size:18px;font-weight:800}
+    .spacer{flex:1}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+      padding:.55rem 1rem;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text);cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .container{max-width:1200px;margin:0 auto;padding:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+    .card h3{margin:0;padding:12px 16px;border-bottom:1px solid var(--line)}
+    .card-body{padding:16px}
+    .grid{display:grid;gap:16px}
+    @media(min-width:1100px){.grid-2{grid-template-columns:1fr 360px}}
+    label{display:block;margin:10px 0 6px 2px;color:var(--muted)}
+    input,select,textarea{width:100%;background:#0d1830;border:1px solid var(--line);border-radius:10px;padding:.75rem;color:var(--text)}
+    textarea{min-height:110px;resize:vertical}
+    .hidden{display:none !important}
+    /* Mapa y alertas */
+    #map{height:340px;border:1px dashed rgba(255,255,255,.15);border-radius:10px}
+    .legend{display:flex;gap:10px;margin-top:10px}
+    .chip{padding:.2rem .7rem;border-radius:999px;border:1px solid var(--line);font-weight:700;background:#15203a}
+    .chip.low{background:#0f2b1e;color:#bbf7d0;border-color:#134e27}
+    .chip.med{background:#2b260f;color:#fde68a;border-color:#4e3d13}
+    .chip.high{background:#2b0f10;color:#fecaca;border-color:#4e1313}
+    /* Alertas scroll derecha */
+    .alerts{height:340px;overflow:auto;padding:10px}
+    .alert{background:#0f1831;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 10px 0}
+    .row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+    .badge{padding:.2rem .6rem;border:1px solid var(--line);border-radius:999px;font-weight:700}
+    .badge.low{background:#0f2b1e;color:#bbf7d0;border-color:#134e27}
+    .badge.med{background:#2b260f;color:#fde68a;border-color:#4e3d13}
+    .badge.high{background:#2b0f10;color:#fecaca;border-color:#4e1313}
+    .muted{color:var(--muted);font-size:12px}
+    /* Modal login */
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55)}
+    .dialog{width:min(480px,92vw);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+    .dialog h3{margin:0 0 8px 0}
+  </style>
 </head>
 <body>
-
-<header class="header">
-  <img src="assets/logo.png" alt="logo" onerror="this.style.visibility='hidden'">
-  <h1>CIE-297 | Monitoreo en Tiempo Real</h1>
-  <div class="right" style="margin-left:auto">
-    <button id="btnSwitchRole" class="btn hidden">Cambiar a Admin</button>
+  <header class="brand">
+    <img src="assets/logo.png" alt="Escudo">
+    <h1>CIE-297 | Monitoreo en Tiempo Real</h1>
+    <div class="spacer"></div>
     <button id="btnLogout" class="btn hidden">Cerrar sesión</button>
-  </div>
-</header>
+  </header>
 
-<!-- Access first -->
-<section id="accessSection" class="access">
-  <div class="panel">
-    <div class="col">
-      <h3>Registro</h3>
-      <div class="row">
-        <select id="grado">
-          <option value="" selected disabled>Grado</option>
-          <option>GRAL</option><option>CNL</option><option>TCNL</option><option>MAY</option>
-          <option>CAP</option><option>TEN</option><option>SBTTE</option>
-        </select>
-        <select id="esp">
-          <option value="" selected disabled>Especialidad</option>
-          <option>INTEL</option><option>CONTRAINTEL</option><option>DEM</option>
-        </select>
+  <main class="container">
+
+    <!-- Acceso -->
+    <section id="secAccess" class="grid" style="grid-template-columns: 1fr">
+      <div class="card">
+        <h3>Registro</h3>
+        <div class="card-body grid" style="grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label for="grado">Grado</label>
+            <select id="grado">
+              <option>MY</option><option>TCNL</option><option>CNL</option><option>GRAL</option>
+              <option>CPT</option><option>SBTTE</option><option>SGTO</option><option>CBO</option>
+            </select>
+          </div>
+          <div>
+            <label for="esp">Especialidad</label>
+            <input id="esp" placeholder="Especialidad"/>
+          </div>
+          <div>
+            <label for="nom">Nombres</label>
+            <input id="nom" placeholder="Nombres"/>
+          </div>
+          <div>
+            <label for="ape">Apellidos</label>
+            <input id="ape" placeholder="Apellidos"/>
+          </div>
+          <div>
+            <label for="emailReg">Email</label>
+            <input id="emailReg" type="email" placeholder="correo@dominio.mil"/>
+          </div>
+          <div>
+            <label for="passReg">Contraseña</label>
+            <input id="passReg" type="password" placeholder="••••••"/>
+          </div>
+          <div>
+            <button class="btn" id="btnCrear">Crear cuenta</button>
+          </div>
+          <div class="spacer"></div>
+          <div style="grid-column:1/-1">
+            <button id="btnShowLogin" class="btn">Iniciar sesión</button>
+          </div>
+        </div>
       </div>
-      <div class="row">
-        <input id="nombres" placeholder="Nombres">
-        <input id="apellidos" placeholder="Apellidos">
+    </section>
+
+    <!-- Modal de login (oculto) -->
+    <section id="loginModal" class="modal hidden">
+      <div class="dialog">
+        <h3>Iniciar sesión</h3>
+        <label for="emailLog">Email</label>
+        <input id="emailLog" placeholder="usuario@cie297.mil" />
+        <label for="passLog">Contraseña</label>
+        <input id="passLog" type="password" placeholder="••••••" />
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button id="btnLogin" class="btn">Entrar</button>
+          <button id="btnCloseLogin" class="btn" style="background:#0e1629">Cerrar</button>
+        </div>
       </div>
-      <input id="emailReg" placeholder="Email">
-      <input id="passReg" type="password" placeholder="Contraseña">
-      <div class="right"><button class="btn" id="btnCreate">Crear cuenta</button></div>
-    </div>
-    <div class="col">
-      <h3>Iniciar sesión</h3>
-      <div class="row">
-        <button class="btn" id="btnOpenLogin">Iniciar sesión</button>
+    </section>
+
+    <!-- Contenido principal (oculto hasta login) -->
+    <section id="secMain" class="grid grid-2 hidden">
+      <!-- Columna izquierda: Mapa, Órganos, Misiones -->
+      <div class="grid">
+        <div class="card">
+          <h3>Área Operativa</h3>
+          <div class="card-body">
+            <div id="map"></div>
+            <div class="legend">
+              <span class="chip low">BAJA</span>
+              <span class="chip med">MEDIA</span>
+              <span class="chip high">ALTA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Órganos de búsqueda</h3>
+          <div class="card-body grid" style="grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label for="selLugar">Código indicativo del lugar</label>
+              <select id="selLugar">
+                <option>HAWAI</option><option>CUBA</option><option>BEIRUT</option><option>LOMAS</option>
+              </select>
+            </div>
+            <div>
+              <label for="selCanal">Código indicativo de canales</label>
+              <select id="selCanal">
+                <option>BLANCO</option><option>ROJO</option><option>AZUL</option><option>AMARILLO</option>
+                <option>VERDE</option><option>ROSADO</option><option>GUINDO</option><option>CARMESI</option>
+                <option>NEGRO</option><option>KAKI</option><option>MARRON</option><option>TURQUESA</option>
+                <option>CELESTE</option><option>NARANJA</option><option>PURPURA</option><option>GRIS</option>
+              </select>
+            </div>
+            <div style="grid-column:1/-1">
+              <label for="selLlamadas">Código indicativo de llamadas</label>
+              <select id="selLlamadas">
+                <option>ZEUS</option><option>ARIES</option><option>VIRGO</option><option>SAGITARIO</option>
+                <option>LIBRA</option><option>CAPRICORNIO</option><option>GEMINIS</option><option>ESCORPIO</option>
+                <option>TAURO</option><option>CANCER</option><option>LEO</option><option>PISCIS</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Misiones / Reportes rápidos</h3>
+          <div class="card-body grid" style="grid-template-columns:1fr 220px 140px 140px auto;gap:12px">
+            <div>
+              <label for="tipo">Tipo</label>
+              <select id="tipo">
+                <option>Operativo en zona</option>
+                <option>Rebasado</option>
+                <option>Cambio de locación</option>
+                <option>Secuestro</option>
+                <option>Incautación de autos</option>
+                <option>Otros</option>
+              </select>
+            </div>
+            <div>
+              <label for="nivel">Nivel</label>
+              <select id="nivel">
+                <option>BAJA</option><option>MEDIA</option><option>ALTA</option>
+              </select>
+            </div>
+            <div>
+              <label for="lat">Lat</label>
+              <input id="lat" placeholder="lat"/>
+            </div>
+            <div>
+              <label for="lng">Lng</label>
+              <input id="lng" placeholder="lng"/>
+            </div>
+            <div style="display:flex;align-items:end">
+              <button class="btn" id="btnGeo">Usar ubicación</button>
+            </div>
+            <div style="grid-column:1/-1">
+              <label for="msg">Mensaje</label>
+              <select id="msg">
+                <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option>
+                <option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option>
+                <option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option><option>PINTURA AZUL</option>
+                <option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option>
+                <option>YENAS</option><option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option>
+                <option>RIO PILCOMAYO</option><option>LAGUNA ESCOBAR</option><option>MALLASA</option>
+                <option>CIELO NUBLADO</option><option>HOTEL RADISSON</option><option>HERRADURA</option>
+                <option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
+              </select>
+            </div>
+            <div style="grid-column:1/-1">
+              <label for="detalle">Descripción</label>
+              <textarea id="detalle" placeholder="Detallar lo ocurrido..."></textarea>
+            </div>
+            <div style="grid-column:1/-1;display:flex;justify-content:end">
+              <button id="btnEnviar" class="btn">Enviar</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <p class="small">Primero crea una cuenta o pulsa “Iniciar sesión”. El contenido del sistema se mostrará después.</p>
-    </div>
-  </div>
-</section>
 
-<!-- Main app -->
-<section id="app" class="grid hidden">
-  <!-- Left: map + report -->
-  <div class="card">
-    <h3>Área Operativa</h3>
-    <div id="map" class="map"></div>
-    <div class="legend">
-      <div class="chip low">BAJA</div>
-      <div class="chip mid">MEDIA</div>
-      <div class="chip high">ALTA</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Órganos de búsqueda</h3>
-    <div id="orgList"></div>
-  </div>
-
-  <div class="card">
-    <h3>Misiones / Reportes rápidos</h3>
-    <div class="row">
-      <select id="tipo">
-        <option>Rebasado</option><option>Cambio de locación</option><option>Secuestro</option>
-        <option>Operativo en zona</option><option>Geocerca violada</option><option>Incautación de autos</option>
-        <option>Observación</option><option>Otros</option>
-      </select>
-      <select id="nivel">
-        <option>BAJA</option><option>MEDIA</option><option>ALTA</option>
-      </select>
-      <button class="btn" id="btnGeo">Usar ubicación</button>
-    </div>
-    <div class="row">
-      <select id="msg">
-        <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option>
-        <option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option>
-        <option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option><option>PINTURA AZUL</option>
-        <option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option>
-        <option>YENAS</option><option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option>
-        <option>RIO PILCOMAYO</option><option>LAGUNA ESCOBAR</option><option>MALLASA</option><option>CIELO NUBLADO</option>
-        <option>HOTEL RADISSON</option><option>HERRADURA</option><option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
-      </select>
-      <input id="lat" placeholder="lat">
-      <input id="lng" placeholder="lng">
-    </div>
-    <textarea id="desc" rows="4" placeholder="Detallar lo ocurrido..."></textarea>
-    <div class="right"><button class="btn" id="btnSend">Enviar</button></div>
-  </div>
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between;align-items:center">
-      <h3>Alertas</h3>
-      <div class="row">
-        <button class="btn" id="btnExport">Exportar PDF</button>
-        <button class="btn" id="btnVerTodas">Ver todas</button>
+      <!-- Columna derecha: Alertas -->
+      <div class="card">
+        <h3>Alertas</h3>
+        <div id="panelAlerts" class="alerts"></div>
       </div>
-    </div>
-    <div id="alertFeed"></div>
-  </div>
+    </section>
+  </main>
 
-  <!-- Admin extra -->
-  <div id="adminCards" class="hidden">
-    <div class="card" style="grid-column:1 / -1">
-      <h3>Alertas (10 más recientes)</h3>
-      <table class="table" id="tblTop10">
-        <thead><tr><th>ID</th><th>Fecha/Hora</th><th>Nivel</th><th>Título</th><th>Agente</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3>Accesos / Sesiones</h3>
-      <table class="table" id="tblAccesos">
-        <thead><tr><th>Email</th><th>Fecha/Hora</th><th>IP (sim.)</th><th>Estado</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3>Bitácora de búsqueda</h3>
-      <ul id="bitacora" class="small"></ul>
-    </div>
-  </div>
-</section>
+  <script>
+    // Estado simple de login (cliente)
+    const secAccess = document.getElementById('secAccess');
+    const secMain   = document.getElementById('secMain');
+    const btnShowLogin = document.getElementById('btnShowLogin');
+    const modal = document.getElementById('loginModal');
+    const btnCloseLogin = document.getElementById('btnCloseLogin');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnLogout= document.getElementById('btnLogout');
+    const emailLog = document.getElementById('emailLog');
+    const passLog  = document.getElementById('passLog');
 
-<!-- login modal -->
-<div class="modal" id="loginModal">
-  <div class="box">
-    <h3>Iniciar sesión</h3>
-    <input id="emailLogin" placeholder="Email">
-    <input id="passLogin" type="password" placeholder="Contraseña">
-    <div class="right" style="margin-top:8px">
-      <button class="btn" id="btnDoLogin">Entrar</button>
-      <button class="btn btn-danger" id="btnCloseLogin">Cerrar</button>
-    </div>
-  </div>
-</div>
+    function setLogged(v){
+      if(v){
+        secAccess.classList.add('hidden');
+        secMain.classList.remove('hidden');
+        btnLogout.classList.remove('hidden');
+        initMap();
+        startSimulation();
+      }else{
+        secMain.classList.add('hidden');
+        btnLogout.classList.add('hidden');
+        secAccess.classList.remove('hidden');
+      }
+    }
+    btnShowLogin.onclick = ()=> modal.classList.remove('hidden');
+    btnCloseLogin.onclick= ()=> modal.classList.add('hidden');
+    btnLogin.onclick = ()=>{
+      // Validación básica (sin exponer credenciales)
+      if(!emailLog.value || !passLog.value){ alert('Completa email y contraseña'); return; }
+      modal.classList.add('hidden');
+      setLogged(true);
+    };
+    btnLogout.onclick = ()=>{ setLogged(false); };
 
-<script>
-/* ======= Datos base ======= */
-const CALLSIGNS = ["ZEUS","ARIES","VIRGO","SAGITARIO","LIBRA","CAPRICORNIO","GEMINIS","ESCORPIO","TAURO","CANCER","LEO","PISCIS"];
-const CHANNELS = ["BLANCO","ROJO","AZUL","AMARILLO","VERDE","ROSADO","GUINDO","CARMESI","NEGRO","KAKI","MARRON","TURQUESA","CELESTE","NARANJA","PURPURA","GRIS"];
-const PLACES = ["HAWAI","CUBA","BEIRUT","LOMAS"];
-const STORAGE = {
-  users: "cie_users",
-  session: "cie_session",
-  alerts: "cie_alerts",
-  accesos: "cie_access_log",
-  blocked: "cie_blocked"
-};
+    // Registro (solo maqueta)
+    document.getElementById('btnCrear').onclick = ()=>{
+      alert('Cuenta registrada (maqueta). Ahora pulsa "Iniciar sesión".');
+    };
 
-function lsGet(key, def){ try{ return JSON.parse(localStorage.getItem(key)) ?? def; }catch(e){ return def; } }
-function lsSet(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+    // Mapa
+    let map, marker;
+    function initMap(){
+      if(map) return;
+      map = L.map('map').setView([-16.5,-68.15], 6); // Bolivia
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxZoom: 18, attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+    }
+    document.getElementById('btnGeo').onclick = ()=>{
+      if(!navigator.geolocation) return alert('Geolocalización no disponible');
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const {latitude,longitude} = pos.coords;
+        document.getElementById('lat').value = latitude.toFixed(6);
+        document.getElementById('lng').value = longitude.toFixed(6);
+        if(map){
+          if(marker) marker.remove();
+          marker = L.marker([latitude,longitude]).addTo(map);
+          map.setView([latitude,longitude], 12);
+        }
+      },()=>alert('No se pudo obtener ubicación'));
+    };
 
-/* ======= Estado ======= */
-let me = null; // sesión
-let isAdmin = false;
-let map, mapMarker;
+    // Envío de reporte (solo agrega al panel de alertas como demo)
+    document.getElementById('btnEnviar').onclick = ()=>{
+      const nivel = document.getElementById('nivel').value;
+      const tipo  = document.getElementById('tipo').value;
+      const msg   = document.getElementById('msg').value;
+      const lat   = document.getElementById('lat').value || '-16.5';
+      const lng   = document.getElementById('lng').value || '-68.15';
+      const who   = document.getElementById('selLlamadas').value;
+      addAlert({nivel,titulo:tipo, usuario:who, desc:msg, lat, lng});
+      alert('Reporte enviado');
+    };
 
-/* ======= UI helpers ======= */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => [...document.querySelectorAll(sel)];
-function toast(msg){ alert(msg); }
-function fmtDT(d){
-  const z=n=> (n<10?"0":"")+n;
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
-}
-function rnd(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
-
-/* ======= Registro ======= */
-$("#btnCreate").addEventListener("click", () => {
-  const u = {
-    grado: $("#grado").value, esp: $("#esp").value,
-    nombres: $("#nombres").value.trim(), apellidos: $("#apellidos").value.trim(),
-    email: $("#emailReg").value.trim(), pass: $("#passReg").value
-  };
-  if(!u.grado || !u.esp || !u.nombres || !u.apellidos || !u.email || !u.pass){ return toast("Completa todos los campos."); }
-  const users = lsGet(STORAGE.users, []);
-  if(users.find(x=>x.email===u.email)) return toast("Ese correo ya está registrado.");
-  users.push(u); lsSet(STORAGE.users, users);
-  toast("Cuenta creada. Ahora inicia sesión.");
-});
-
-/* ======= Login ======= */
-$("#btnOpenLogin").addEventListener("click", ()=> $("#loginModal").style.display="flex");
-$("#btnCloseLogin").addEventListener("click", ()=> $("#loginModal").style.display="none");
-$("#btnDoLogin").addEventListener("click", doLogin);
-function doLogin(){
-  const email = $("#emailLogin").value.trim();
-  const pass = $("#passLogin").value;
-  const users = lsGet(STORAGE.users, []);
-
-  // Admin directo
-  if(email.toLowerCase()==="admin@cie297.mil" && pass==="Admin123!"){
-    me = {email, nombres:"Administrador", apellidos:"CIE-297"};
-    isAdmin = true;
-  }else{
-    const u = users.find(x=>x.email===email && x.pass===pass);
-    if(!u) return toast("Credenciales inválidas");
-    me = u; isAdmin=false;
-  }
-  // registro de acceso (simulando IP)
-  const acc = lsGet(STORAGE.accesos, []);
-  acc.unshift({email:me.email, at:Date.now(), ip:`10.${rnd(10,250)}.${rnd(10,250)}.${rnd(10,250)}`, ok:true});
-  lsSet(STORAGE.accesos, acc);
-  lsSet(STORAGE.session, me);
-  $("#loginModal").style.display="none";
-  boot();
-}
-
-/* ======= App boot ======= */
-function boot(){
-  me = lsGet(STORAGE.session, null);
-  if(!me){ $("#accessSection").classList.remove("hidden"); $("#app").classList.add("hidden"); return; }
-
-  $("#accessSection").classList.add("hidden");
-  $("#app").classList.remove("hidden");
-  $("#btnLogout").classList.remove("hidden");
-  $("#btnSwitchRole").classList.toggle("hidden", false);
-  $("#btnSwitchRole").textContent = isAdmin? "Cambiar a Usuario":"Cambiar a Admin";
-  $("#adminCards").classList.toggle("hidden", !isAdmin);
-
-  initMap(); buildOrgList(); renderAlertsFeed(); fillTop10(); fillAccesos(); fillBitacora();
-}
-
-/* ======= Logout / Switch ======= */
-$("#btnLogout").addEventListener("click", ()=>{
-  lsSet(STORAGE.session, null); me=null; isAdmin=false;
-  boot();
-});
-$("#btnSwitchRole").addEventListener("click", ()=>{
-  if(!me) return;
-  isAdmin = !isAdmin;
-  $("#btnSwitchRole").textContent = isAdmin? "Cambiar a Usuario":"Cambiar a Admin";
-  $("#adminCards").classList.toggle("hidden", !isAdmin);
-});
-
-/* ======= Mapa ======= */
-function initMap(){
-  if(!map){
-    map = L.map('map').setView([-16.5,-68.15], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution:'&copy; OpenStreetMap'
-    }).addTo(map);
-  }
-}
-$("#btnGeo").addEventListener("click", ()=>{
-  navigator.geolocation?.getCurrentPosition(g=>{
-    const {latitude,longitude}=g.coords;
-    $("#lat").value=latitude.toFixed(6); $("#lng").value=longitude.toFixed(6);
-    placeMarker(latitude, longitude);
-  },()=>toast("No se pudo obtener ubicación."));
-});
-function placeMarker(lat,lng){
-  if(mapMarker) map.removeLayer(mapMarker);
-  mapMarker = L.marker([lat,lng]).addTo(map);
-  map.setView([lat,lng], 12);
-}
-
-/* ======= Organos (con indicativos de llamada) ======= */
-function buildOrgList(){
-  const $c = $("#orgList"); $c.innerHTML="";
-  const now = new Date();
-  const list = CALLSIGNS.slice(0,4).map((name,i)=>{
-    const ch = CHANNELS[i%CHANNELS.length];
-    const coord = [-16.5 + i*0.2, -68.15 + i*0.2];
-    return {name, grupo: ["ALFA","BRAVO","CHARLIE","DELTA"][i%4], status:["EN MISIÓN","EN ESPERA","SIN SEÑAL","EN MISIÓN"][i%4], fix: fmtDT(now), coord, canal:ch};
-  });
-  list.forEach(u=>{
-    const div = document.createElement("div"); div.className="unit";
-    div.innerHTML = `<div class="left">
-        <div class="name">${u.name}</div>
-        <div class="meta">${u.grupo} • Fix ${u.fix}</div>
-        <div class="small">Canal ${u.canal} • ${u.coord[0].toFixed(4)}, ${u.coord[1].toFixed(4)}</div>
-      </div>
-      <div>${u.status}</div>`;
-    $c.appendChild(div);
-  });
-}
-
-/* ======= Alertas ======= */
-function pushAlert(alert){
-  const arr = lsGet(STORAGE.alerts, []);
-  arr.unshift(alert); lsSet(STORAGE.alerts, arr);
-}
-function renderAlertsFeed(){
-  const wrap = $("#alertFeed"); wrap.innerHTML="";
-  const arr = lsGet(STORAGE.alerts, []);
-  arr.slice(0,50).forEach(a=> wrap.appendChild(alertItem(a)) );
-}
-function alertItem(a){
-  const div=document.createElement("div");
-  const badge = `badge ${a.nivel==='ALTA'?'high':(a.nivel==='MEDIA'?'mid':'low')}`;
-  div.className="unit";
-  const pos = a.lat && a.lng ? ` • ${parseFloat(a.lat).toFixed(4)}, ${parseFloat(a.lng).toFixed(4)}` : "";
-  div.innerHTML = `<div class="left">
-      <div class="row" style="gap:8px;align-items:center">
-        <span class="${badge}">${a.nivel}</span>
-        <span class="small">${a.fecha}</span>
-        <span class="badge s">SIMULADO</span>
-      </div>
-      <div class="name">${a.agente}</div>
-      <div class="meta">${a.titulo}${pos}</div>
-    </div>
-    <div></div>`;
-  return div;
-}
-// simulación cada 5s
-setInterval(()=>{
-  if(!me) return;
-  const nivel = ["BAJA","MEDIA","ALTA"][rnd(0,2)];
-  const agente = CALLSIGNS[rnd(0,CALLSIGNS.length-1)];
-  const titulo = ["Actualización de posición","Interferencia RF","Geocerca violada","Movimiento anómalo"][rnd(0,3)];
-  const fecha = fmtDT(new Date());
-  const lat = -16.5 + Math.random(); const lng = -68.15 + Math.random();
-  const a={id:Math.random().toString(16).slice(2,7), fecha, nivel, titulo, agente, lat, lng};
-  pushAlert(a);
-  renderAlertsFeed(); fillTop10();
-}, 5000);
-
-/* Enviar reporte manual */
-$("#btnSend").addEventListener("click", ()=>{
-  const a={
-    id:Math.random().toString(16).slice(2,7),
-    fecha:fmtDT(new Date()),
-    nivel: $("#nivel").value,
-    titulo: $("#tipo").value + " — " + $("#msg").value,
-    agente: me?.nombres ? (me.nombres.split(" ")[0].toUpperCase()) : CALLSIGNS[rnd(0,CALLSIGNS.length-1)],
-    lat: $("#lat").value, lng: $("#lng").value, desc: $("#desc").value
-  };
-  pushAlert(a); renderAlertsFeed(); fillTop10();
-  toast("Reporte enviado.");
-});
-
-/* ======= Admin: Top10, Ver todas, PDF, Accesos y Bitácora ======= */
-function fillTop10(){
-  if(!isAdmin) return;
-  const tb=$("#tblTop10 tbody"); tb.innerHTML="";
-  lsGet(STORAGE.alerts, []).slice(0,10).forEach(a=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${a.id}</td><td>${a.fecha}</td><td>${a.nivel}</td><td>${a.titulo}</td><td>${a.agente}</td>`;
-    tb.appendChild(tr);
-  });
-}
-$("#btnVerTodas").addEventListener("click", ()=>{
-  if(!isAdmin) return toast("Solo administrador.");
-  const arr = lsGet(STORAGE.alerts, []);
-  const byDay = {};
-  arr.forEach(a=>{
-    const day=a.fecha.slice(0,10);
-    (byDay[day] ||= []).push(a);
-  });
-  const wrap = window.open("", "_blank", "width=980,height=700");
-  wrap.document.write("<title>Alertas por día</title><body style='font-family:system-ui;padding:16px;background:#0b1424;color:#e5ecff'>");
-  Object.entries(byDay).forEach(([day,list])=>{
-    wrap.document.write(`<h2 style='margin:8px 0'>${day}</h2>`);
-    wrap.document.write("<table border='1' cellspacing='0' cellpadding='6' style='width:100%;border-collapse:collapse'>");
-    wrap.document.write("<tr><th>ID</th><th>Fecha/Hora</th><th>Nivel</th><th>Título</th><th>Agente</th></tr>");
-    list.forEach(a=> wrap.document.write(`<tr><td>${a.id}</td><td>${a.fecha}</td><td>${a.nivel}</td><td>${a.titulo}</td><td>${a.agente}</td></tr>`));
-    wrap.document.write("</table>");
-  });
-  wrap.document.write("</body>");
-  wrap.document.close();
-});
-$("#btnExport").addEventListener("click", async ()=>{
-  if(!isAdmin) return toast("Solo administrador.");
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:"pt", format:"a4"});
-  // logo si existe
-  try{
-    const img = await fetch("assets/logo.png");
-    const blob = await img.blob();
-    const dataUrl = await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(blob); });
-    doc.addImage(dataUrl,"PNG",40,30,40,40);
-  }catch(e){}
-  doc.setFontSize(16); doc.text("CIE-297 – Reporte de Alertas", 90, 50);
-  doc.setFontSize(10); doc.text("Generado: "+fmtDT(new Date()), 90, 68);
-  const rows = lsGet(STORAGE.alerts, []).slice(0,100).map(a=>[a.id, a.fecha, a.nivel, a.titulo, a.agente]);
-  doc.autoTable({startY: 90, head:[["ID","Fecha y hora","Nivel","Título","Agente"]], body: rows});
-  doc.save("reporte_alertas.pdf");
-});
-function fillAccesos(){
-  if(!isAdmin) return;
-  const tb=$("#tblAccesos tbody"); tb.innerHTML="";
-  const blocked = new Set(lsGet(STORAGE.blocked, []));
-  lsGet(STORAGE.accesos, []).slice(0,50).forEach(e=>{
-    const tr=document.createElement("tr");
-    const isBlocked = blocked.has(e.email);
-    tr.innerHTML = `<td>${e.email}</td><td>${fmtDT(new Date(e.at))}</td><td>${e.ip}</td>
-      <td>${isBlocked?"BLOQUEADO":"OK"}</td>
-      <td><button class="btn ${isBlocked?"btn-ok":"btn-danger"}" data-email="${e.email}">${isBlocked?"Desbloquear":"Bloquear"}</button></td>`;
-    tb.appendChild(tr);
-  });
-  tb.querySelectorAll("button").forEach(b=> b.addEventListener("click", ()=>{
-    const email=b.dataset.email; let arr=lsGet(STORAGE.blocked, []);
-    if(arr.includes(email)) arr=arr.filter(x=>x!==email); else arr.push(email);
-    lsSet(STORAGE.blocked, arr); fillAccesos();
-  }));
-}
-function fillBitacora(){
-  if(!isAdmin) return;
-  const el=$("#bitacora"); el.innerHTML="";
-  const items = lsGet(STORAGE.alerts, []).slice(0,30).map(a=>`[${a.fecha}] ${a.agente}: ${a.titulo}`);
-  items.forEach(t=>{ const li=document.createElement("li"); li.textContent=t; el.appendChild(li); });
-}
-
-/* ======= Entrar si hay sesión guardada ======= */
-boot();
-</script>
+    // Panel de alertas con simulación
+    const panel = document.getElementById('panelAlerts');
+    const calls = ['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS'];
+    const titles = ['Interferencia RF','Movimiento anómalo','Geocerca violada','Pérdida de comunicación','Operativo iniciado','Actualización de posición','Incidente'];
+    function addAlert(a){
+      const wrap = document.createElement('div');
+      wrap.className = 'alert';
+      const badgeClass = a.nivel==='ALTA'?'high':(a.nivel==='MEDIA'?'med':'low');
+      const time = new Date().toLocaleTimeString('es-BO',{hour12:false});
+      wrap.innerHTML = `
+        <div class="row">
+          <strong>${a.usuario}</strong>
+          <span class="badge ${badgeClass}">${a.nivel}</span>
+          <span class="muted">${time}</span>
+        </div>
+        <div style="margin-top:6px">${a.titulo} — <span class="muted">${a.desc}</span></div>
+        <div class="muted" style="margin-top:4px">(${Number(a.lat).toFixed(4)}, ${Number(a.lng).toFixed(4)})</div>
+      `;
+      panel.prepend(wrap);
+    }
+    let simTimer;
+    function startSimulation(){
+      if(simTimer) return;
+      simTimer = setInterval(()=>{
+        const nivel = ['BAJA','MEDIA','ALTA'][Math.floor(Math.random()*3)];
+        const titulo= titles[Math.floor(Math.random()*titles.length)];
+        const usuario=calls[Math.floor(Math.random()*calls.length)];
+        const lat=(-14 - Math.random()*4).toFixed(4);
+        const lng=(-66 - Math.random()*4).toFixed(4);
+        addAlert({nivel,titulo,usuario,desc:'SIMULADO',lat,lng});
+      },5000);
+    }
+  </script>
 </body>
 </html>
