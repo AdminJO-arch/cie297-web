@@ -1,294 +1,176 @@
-
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>CIE-297 | Monitoreo en Tiempo Real</title>
-  <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    :root{ --bg:#0b1320; --panel:#111a33; --line:#1e2b4f; --text:#e9eef7; --soft:#223055; --muted:#a5b3d1 }
-    *{ box-sizing:border-box }
-    body{ font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; margin:0; background:var(--bg); color:var(--text) }
-    header,footer{ padding:12px 16px; background:#0f1a30; display:flex; align-items:center; gap:12px }
-    header img{ height:48px }
-    main{ padding:16px; max-width:1200px; margin:0 auto }
-    .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin:12px 0 }
-    input,select,button,textarea{ padding:10px; border-radius:10px; border:1px solid #30426e; background:var(--bg); color:var(--text) }
-    button{ cursor:pointer }
-    .row{ display:flex; gap:12px; flex-wrap:wrap }
-    .col{ flex:1; min-width:280px }
-    .hidden{ display:none }
-    .grid{ display:grid; grid-template-columns:2fr 1fr; gap:16px }
-    .stack{ display:flex; flex-direction:column; gap:16px }
-    .modal{ position:fixed; inset:0; background:#0009; display:none; align-items:center; justify-content:center; padding:16px }
-    .modal .box{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; max-width:420px; width:100% }
-    .pill{ font-size:11px; padding:2px 6px; border-radius:999px; border:1px solid var(--soft); color:var(--muted) }
-    table{ width:100%; border-collapse:collapse } th,td{ border-bottom:1px solid var(--soft); padding:8px; text-align:left }
-  </style>
-  <script src="config.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CIE-297 | Monitoreo en Tiempo Real</title>
+<link rel="icon" href="assets/logo.png"/>
+<style>
+  :root{ --bg:#0b1424;--card:#101b31;--soft:#12213b;--text:#e5ecff;--muted:#93a4c7;
+         --ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;--line:rgba(255,255,255,.06); }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:var(--bg)}
+  .container{max-width:1200px;margin:0 auto;padding:16px}
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:#0b1424;position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line)}
+  .brand{display:flex;gap:.6rem;align-items:center;font-weight:800;font-size:18px}
+  .brand img{height:32px;width:32px;border-radius:6px}
+  .actions{display:flex;gap:.5rem;align-items:center}
+  .btn{cursor:pointer;border:1px solid var(--line);background:var(--soft);color:var(--text);padding:.5rem .8rem;border-radius:.6rem}
+  .btn:hover{filter:brightness(1.1)} .btn-danger{background:#2b1220;border-color:#ff6b6b;color:#ff9aa9} .btn-secondary{background:#1c2437}
+  .badge{display:inline-block;padding:.1rem .6rem;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .grid{display:grid;gap:16px} .g-2{grid-template-columns:2fr 1fr}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px} .card h3{margin:.2rem 0 10px 0}
+  .row{display:flex;gap:10px;align-items:center} .col{display:flex;flex-direction:column;gap:6px}
+  .control{width:100%;background:#0f1a30;border:1px solid var(--line);color:var(--text);padding:.55rem .6rem;border-radius:8px}
+  .table-wrap{overflow:auto;border:1px dashed var(--line);border-radius:10px;margin-top:8px}
+  table{width:100%;border-collapse:collapse} th,td{padding:.55rem .6rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  thead th{background:#0f1a2e;color:#c7d3ff;font-weight:700} .muted{color:var(--muted)} .right{display:flex;justify-content:flex-end}
+  .hidden{display:none !important}
+  .chip{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-weight:700;border:1px solid rgba(255,255,255,.15);letter-spacing:.5px}
+  .chip--alta{background:#3b0d0d;border-color:var(--danger);color:#ff6b6b}
+  .chip--media{background:#3a3000;border-color:var(--warn);color:#ffd166}
+  .chip--baja{background:#062b0b;border-color:var(--ok);color:#86efac}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal .box{width:420px;max-width:92vw;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .title{font-weight:800;margin:0 0 8px 0}
+  @media (max-width:980px){ .g-2{grid-template-columns:1fr} }
+</style>
+<script>
+  const API=(window.CIE297_API||'').replace(/\/+$/,''); const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
+  const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); const authHeaders=()=>({'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('token')||'')});
+  function fmtDateTime(iso){const d=new Date(iso);const y=d.getFullYear(),m=('0'+(d.getMonth()+1)).slice(-2),da=('0'+d.getDate()).slice(-2),hh=('0'+d.getHours()).slice(-2),mm=('0'+d.getMinutes()).slice(-2),ss=('0'+d.getSeconds()).slice(-2);return `${y}-${m}-${da} ${hh}:${mm}:${ss}`;}
+  function chipNivel(n){n=(n||'').toUpperCase();const e=document.createElement('span');e.className='chip '+(n==='ALTA'?'chip--alta':n==='BAJA'?'chip--baja':'chip--media');e.textContent=n;return e;}
+  async function apiLogin(email,password){const r=await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});const j=await r.json();if(!r.ok)throw new Error(j?.message||'Error login');localStorage.setItem('token',j.token);window._me=j.user;window._isAdmin=!!j.user?.is_admin;return j;}
+  async function apiMe(){const r=await fetch(API+'/api/me',{headers:authHeaders()});if(!r.ok)return null;const j=await r.json();window._me=j.user;window._isAdmin=!!j.user?.is_admin;return j.user;}
+  async function apiCreateAccount(p){const r=await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});const j=await r.json();if(!r.ok)throw new Error(j?.message||'Error registrar');return j;}
+  async function apiSendReport(p){const r=await fetch(API+'/api/reports',{method:'POST',headers:authHeaders(),body:JSON.stringify(p)});const j=await r.json();if(!r.ok)throw new Error(j?.message||'Error enviar');return j;}
+  async function apiGetAlerts(limit=10){const r=await fetch(API+`/api/admin/alerts?limit=${limit}`,{headers:authHeaders()});const j=await r.json();if(!r.ok)throw new Error(j?.message||'Error listar');return j.items||[];}
+  function render(v){qsa('[data-view]').forEach(e=>e.classList.add('hidden'));qs(`[data-view="${v}"]`).classList.remove('hidden');if(v==='dashboard'||v==='admin'){qs('#btnLogout').classList.remove('hidden')}else{qs('#btnLogout').classList.add('hidden')}qs('#hello').textContent=window._me?(' | '+(window._me.grado||'')+' '+(window._me.nombres||'')) : '';}
+  function openLogin(){qs('#loginModal').style.display='flex';qs('#loginEmail').focus()} function closeLogin(){qs('#loginModal').style.display='none'}
+  async function doLogin(){try{await apiLogin(qs('#loginEmail').value.trim(),qs('#loginPass').value.trim());closeLogin();if(window._isAdmin){initAdmin();render('admin')}else{initUser();render('dashboard')}}catch(e){alert(e.message)}}
+  async function createAccount(){const p={grado:qs('#grado').value,especialidad:qs('#especialidad').value.trim(),nombres:qs('#nombres').value.trim(),apellidos:qs('#apellidos').value.trim(),email:qs('#email').value.trim(),password:qs('#password').value.trim()};try{await apiCreateAccount(p);alert('Usuario creado. Inicia sesión.')}catch(e){alert(e.message)}}
+  function paintLatest(sel,items){const tb=qs(sel);tb.innerHTML='';(items||[]).forEach(it=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${it.id??''}</td><td>${fmtDateTime(it.fecha||it.created_at)}</td><td data-chip></td><td>${esc(it.tipo||'')}</td><td>${esc(it.usuario||'')}</td><td>${(it.lat!=null&&it.lng!=null)?((+it.lat).toFixed(4)+', '+(+it.lng).toFixed(4)) : ''}</td><td>${esc(it.descripcion||'')}</td>`;tr.querySelector('[data-chip]').appendChild(chipNivel(it.nivel));tb.appendChild(tr)})}
+  async function refreshLatest(){const it=await apiGetAlerts(10);paintLatest('#listLatest',it)} async function refreshAdmin(){const it=await apiGetAlerts(10);paintLatest('#adminLatest',it)}
+  function nivelAleatorio(){const n=['ALTA','MEDIA','BAJA'],p=[0.25,0.5,0.25];let r=Math.random(),a=0;for(let i=0;i<n.length;i++){a+=p[i];if(r<=a)return n[i]}return'’MEDIA’'}
+  function startSim(){stopSim();window._sim=setInterval(async()=>{try{const nivel=nivelAleatorio();const tipos=['SIMULADO','OBSERVACION','INTERFERENCIA','MOVIMIENTO','OTROS'];const tipo=tipos[Math.floor(Math.random()*tipos.length)];const lat=-16.6+Math.random(),lng=-68.2+Math.random();const descripcion=nivel==='ALTA'?'Evento crítico (simulado)':nivel==='BAJA'?'Notificación menor (simulado)':'Actividad observada (simulado)';await apiSendReport({tipo,nivel,descripcion,lat,lng,sim:true});if(window._isAdmin)refreshAdmin();else refreshLatest()}catch(e){}},5000)}
+  function stopSim(){if(window._sim){clearInterval(window._sim);window._sim=null}}
+  async function sendQuick(){const tipo=qs('#tipo').value,nivel=qs('#nivel').value,msg=qs('#mensaje').value||'',libre=qs('#descripcion').value||'';const descripcion=msg?`[${msg}] ${libre}`:libre;let lat=qs('#lat').value?+qs('#lat').value:null,lng=qs('#lng').value?+qs('#lng').value:null;try{await apiSendReport({tipo,nivel,descripcion,lat,lng});alert('Reporte enviado');qs('#descripcion').value='';if(window._isAdmin)refreshAdmin();else refreshLatest()}catch(e){alert(e.message)}}
+  function useLocation(){if(!navigator.geolocation)return alert('Geolocalización no soportada');navigator.geolocation.getCurrentPosition(p=>{qs('#lat').value=p.coords.latitude.toFixed(6);qs('#lng').value=p.coords.longitude.toFixed(6)},()=>alert('No se pudo obtener ubicación'),{enableHighAccuracy:true,timeout:7000})}
+  async function initUser(){startSim();await refreshLatest()} async function initAdmin(){startSim();await refreshAdmin()}
+  function logout(){localStorage.removeItem('token');window._me=null;window._isAdmin=false;stopSim();render('landing')}
+  async function verTodas(){const r=await fetch(API+'/api/admin/alerts?limit=2000',{headers:authHeaders()});const j=await r.json();const items=(j.items||[]).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));const g=items.reduce((a,it)=>{const d=new Date(it.fecha||it.created_at);const k=`${d.getFullYear()}-${('0'+(d.getMonth()+1)).slice(-2)}-${('0'+d.getDate()).slice(-2)}`;(a[k]||(a[k]=[])).push(it);return a},{});const days=Object.keys(g).sort().reverse();const pnl=qs('#panelTodas');pnl.classList.remove('hidden');pnl.innerHTML=days.map(day=>{const rows=g[day].map(it=>`<tr><td>${it.id??''}</td><td>${fmtDateTime(it.fecha||it.created_at)}</td><td>${esc(it.nivel||'')}</td><td>${esc(it.tipo||'')}</td><td>${esc(it.usuario||'')}</td><td>${(it.lat!=null&&it.lng!=null)?((+it.lat).toFixed(4)+', '+(+it.lng).toFixed(4)) : ''}</td><td>${esc(it.descripcion||'')}</td></tr>`).join('');return `<div class="row" style="justify-content:space-between;align-items:center;margin:6px 0"><div class="title">Reportes del ${day}</div><div class="row" style="gap:6px"><button class="btn btn-secondary" data-exp-pdf="${day}">Exportar PDF</button><button class="btn" data-exp-csv="${day}">Exportar CSV</button></div></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Usuario</th><th>Ubicación</th><th>Descripción</th></tr></thead><tbody>${rows}</tbody></table></div>`}).join('')}
+  async function onExport(ev){const pdf=ev.target.closest('[data-exp-pdf]'),csv=ev.target.closest('[data-exp-csv]');if(!pdf&&!csv)return;const day=(pdf&&pdf.dataset.expPdf)||(csv&&csv.dataset.expCsv);const base=pdf?'/api/admin/alerts/export/pdf':'/api/admin/alerts/export/csv';const url=`${API}${base}?date=${encodeURIComponent(day)}`;const r=await fetch(url,{headers:authHeaders()});const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=pdf?`reporte_${day}.pdf`:`reporte_${day}.csv`;a.click();URL.revokeObjectURL(a.href)}
+  window.addEventListener('DOMContentLoaded',async()=>{qs('#btnOpenLogin').addEventListener('click',openLogin);qs('#btnCloseLogin').addEventListener('click',closeLogin);qs('#btnLogin').addEventListener('click',doLogin);qs('#btnCreate').addEventListener('click',createAccount);qs('#btnSend').addEventListener('click',sendQuick);qs('#btnUseLocation').addEventListener('click',useLocation);qs('#btnLogout').addEventListener('click',logout);qs('#btnVerTodas').addEventListener('click',verTodas);qs('#panelTodas').addEventListener('click',onExport);const me=await apiMe();if(me){if(window._isAdmin){initAdmin();render('admin')}else{initUser();render('dashboard')}}else{render('landing')}setInterval(()=>{if(window._isAdmin)refreshAdmin();else refreshLatest()},15000)});
+</script>
 </head>
 <body>
-  <header>
-    <img src="assets/logo.png" alt="logo"/>
-    <h2>CIE-297 | Monitoreo en Tiempo Real</h2>
-  </header>
-  <main>
-    <!-- LANDING -->
-    <section id="landing" class="card">
-      <h3>Registro</h3>
-      <div class="row">
-        <div class="col">
-          <div class="row">
-            <select id="grado">
-              <option value="">Grado</option>
-              <option>GRAL</option><option>CNL</option><option>TCNL</option>
-              <option>MY</option><option>CAP</option><option>TTE</option><option>SBTTE</option>
-              <option>SOF</option><option>SGTO</option><option>SOLD</option>
-            </select>
-            <input id="especialidad" placeholder="Especialidad"/>
-          </div>
-          <div class="row">
-            <input id="nombres" placeholder="Nombres"/>
-            <input id="apellidos" placeholder="Apellidos"/>
-          </div>
-          <div class="row">
-            <input id="email" placeholder="Email"/>
-            <input id="password" type="password" placeholder="Contraseña"/>
-          </div>
-          <button id="btnRegister">Crear cuenta</button>
-        </div>
-        <div class="col" style="display:flex;align-items:center;justify-content:center">
-          <button id="openLogin">Iniciar sesión</button>
-        </div>
-      </div>
-    </section>
+<header class="appbar">
+  <div class="brand">
+    <img src="assets/logo.png" alt="logo">
+    <span>CIE-297 | Monitoreo en Tiempo Real <span id="hello" class="muted"></span></span>
+  </div>
+  <div class="actions">
+    <button id="btnLogout" class="btn btn-danger hidden">Cerrar sesión</button>
+  </div>
+</header>
+<div class="container">
 
-    <!-- LOGIN MODAL -->
-    <div id="loginModal" class="modal">
-      <div class="box">
-        <h3>Iniciar sesión</h3>
-        <input id="lemail" placeholder="Email"/>
-        <input id="lpassword" type="password" placeholder="Contraseña" style="margin-top:8px"/>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-          <button id="btnLogin">Entrar</button>
-          <button id="closeLogin">Cerrar</button>
+  <section class="card" data-view="landing">
+    <h3>Registro</h3>
+    <div class="grid" style="grid-template-columns:1fr auto">
+      <div class="col">
+        <div class="row">
+          <select id="grado" class="control" style="max-width:200px">
+            <option value="">Grado</option>
+            <option>GRAL</option><option>CNL</option><option>TCNL</option><option>MY</option><option>CAP</option><option>TTE</option><option>SBTTE</option><option>SGTO</option><option>CBOS</option>
+          </select>
+          <input id="especialidad" placeholder="Especialidad" class="control" style="flex:1">
         </div>
+        <div class="row"><input id="nombres" placeholder="Nombres" class="control" style="flex:1"><input id="apellidos" placeholder="Apellidos" class="control" style="flex:1"></div>
+        <div class="row"><input id="email" placeholder="Email" class="control" style="flex:1"><input id="password" type="password" placeholder="Contraseña" class="control" style="flex:1"></div>
+        <div class="right"><button id="btnCreate" class="btn">Crear cuenta</button></div>
       </div>
+      <div class="right" style="align-items:flex-start"><button id="btnOpenLogin" class="btn btn-secondary" style="height:40px;margin-top:4px">Iniciar sesión</button></div>
+    </div>
+    <p class="muted">© CIE-297 · Prototipo académico · Tiempo real</p>
+  </section>
+
+  <section class="grid g-2 hidden" data-view="dashboard">
+    <div class="card">
+      <h3>Área Operativa</h3>
+      <div class="table-wrap" style="height:320px;display:flex;align-items:center;justify-content:center;border-style:dashed">
+        <div class="muted">Mapa (Leaflet) — Bolivia</div>
+      </div>
+      <div class="muted" style="margin-top:6px">Leyenda: <span class="chip chip--baja">BAJA</span> <span class="chip chip--media">MEDIA</span> <span class="chip chip--alta">ALTA</span></div>
+    </div>
+    <aside class="card"><h3>Órganos de búsqueda</h3><div class="muted">Se listan con claves IEC-SAT (simulado)</div></aside>
+
+    <div class="card" style="grid-column:1 / -1">
+      <h3>Misiones / Reportes rápidos</h3>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="col">
+          <label>Tipo</label>
+          <select id="tipo" class="control">
+            <option>Rebasado</option><option>Relocalización</option><option>Interferencia RF</option><option>Observación</option><option>Incautación de autos</option><option>Secuestro</option><option>Otros</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Nivel</label>
+          <select id="nivel" class="control"><option>ALTA</option><option selected>MEDIA</option><option>BAJA</option></select>
+        </div>
+        <div class="col">
+          <label>Mensaje</label>
+          <select id="mensaje" class="control">
+            <option value="">— seleccionar —</option>
+            <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option>
+            <option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option>
+            <option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option>
+            <option>PINTURA AZUL</option><option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option>
+            <option>YENAS</option><option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option>
+            <option>RIO PILCOMAYO</option><option>LAGUNA ESCOBAR</option><option>MALLASA</option><option>CIELO NUBLADO</option>
+            <option>HOTEL RADISSON</option><option>HERRADURA</option><option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Ubicación</label>
+          <div class="row"><input id="lat" class="control" placeholder="lat"><input id="lng" class="control" placeholder="lng"><button id="btnUseLocation" class="btn">Usar ubicación</button></div>
+        </div>
+        <div class="col" style="grid-column:1 / -1"><label>Descripción</label><textarea id="descripcion" class="control" rows="3" placeholder="Detallar lo ocurrido…"></textarea></div>
+      </div>
+      <div class="right" style="margin-top:8px"><button id="btnSend" class="btn">Enviar</button></div>
     </div>
 
-    <!-- USER DASHBOARD -->
-    <section id="userPanel" class="hidden">
-      <div class="grid">
-        <div class="stack">
-          <div class="card">
-            <h3>Área Operativa</h3>
-            <div id="mapBO" style="height:320px; border:1px dashed var(--soft); border-radius:12px;"></div>
-          </div>
-
-          <div class="card">
-            <h3>Órganos de búsqueda</h3>
-            <div class="row">
-              <div class="col"><label>Órgano</label><select id="organo"></select></div>
-              <div class="col"><label>Canal</label><select id="canal"></select></div>
-              <div class="col"><label>Lugar</label><select id="lugar"></select></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3>Misiones / Reportes rápidos</h3>
-            <div class="row">
-              <div class="col">
-                <label>Tipo</label>
-                <select id="tipo">
-                  <option value="REBASE">Rebasado</option>
-                  <option value="CAMBIO_LOC">Cambio de locación</option>
-                  <option value="SECUESTRO">Secuestro</option>
-                  <option value="OPERATIVO">Operativo en curso</option>
-                  <option value="PERDIDA_COM">Pérdida de comunicación</option>
-                  <option value="PALABRA_CLAVE">Palabra clave detectada</option>
-                  <option value="GEO_VIOLADA">Geocerca violada</option>
-                  <option value="INTERF_RF">Interferencia RF</option>
-                  <option value="MOV_ANOMALO">Movimiento anómalo</option>
-                  <option value="INCAUTACION_AUTOS">Incautación de autos</option>
-                  <option value="OTRA">Otra</option>
-                </select>
-              </div>
-              <div class="col"><label>Nivel</label><select id="nivel"><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select></div>
-              <div class="col" id="incAutoWrap" style="display:none">
-                <label>Indicativo (incautación)</label>
-                <select id="indicInc"></select>
-              </div>
-              <div class="col"><label>&nbsp;</label><button id="btnGeo">Usar ubicación</button></div>
-            </div>
-            <label style="display:block;margin-top:8px">Descripción</label>
-            <textarea id="mensaje" rows="6" style="min-height:160px;width:100%" placeholder="Detallar lo ocurrido..."></textarea>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-              <button id="btnEnviar">Enviar</button>
-              <button id="btnLogout">Cerrar sesión</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="stack">
-          <div class="card">
-            <div class="row" style="justify-content:space-between;align-items:center">
-              <h3>Alertas</h3>
-              <span class="pill" id="alertsCount">0</span>
-            </div>
-            <div id="alertsList" style="max-height:540px;overflow:auto"></div>
-          </div>
-        </div>
+    <div class="card" style="grid-column:1 / -1">
+      <div class="row" style="justify-content:space-between;align-items:center"><h3>Alertas (10 más recientes)</h3></div>
+      <div class="table-wrap">
+        <table><thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Usuario</th><th>Ubicación</th><th>Descripción</th></tr></thead><tbody id="listLatest"></tbody></table>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- ADMIN PANEL -->
-    <section id="adminPanel" class="hidden">
-      <div class="card">
-        <div class="row" style="justify-content:space-between;align-items:center">
-          <h3>Panel Administrador</h3>
-          <div style="display:flex;gap:8px">
-            <a id="pdfLink" href="#" target="_blank"><button>Exportar PDF</button></a>
-            <a id="csvLink" href="#" target="_blank"><button>Exportar CSV</button></a>
-            <button id="btnAdminLogout">Cerrar sesión</button>
-          </div>
-        </div>
+  <section class="grid g-2 hidden" data-view="admin">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3>Alertas (10 más recientes)</h3>
+        <div class="row" style="gap:8px"><span class="badge">10 más recientes</span><button id="btnVerTodas" class="btn btn-secondary">Ver todas</button></div>
       </div>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Usuario</th><th>Ubicación</th><th>Descripción</th></tr></thead><tbody id="adminLatest"></tbody></table></div>
+      <div id="panelTodas" class="hidden" style="margin-top:10px"></div>
+    </div>
+    <aside class="card"><h3>Órganos de búsqueda</h3><div class="muted">Claves IEC-SAT (simulado)</div></aside>
+  </section>
 
-      <div class="grid">
-        <div class="stack">
-          <div class="card">
-            <h3>Área Operativa</h3>
-            <div id="mapBOAdmin" style="height:300px; border:1px dashed var(--soft); border-radius:12px;"></div>
-          </div>
+</div>
 
-          <div class="card">
-            <h3>Órganos de búsqueda</h3>
-            <div class="row">
-              <div class="col"><label>Órgano</label><select id="organoA"></select></div>
-              <div class="col"><label>Canal</label><select id="canalA"></select></div>
-              <div class="col"><label>Lugar</label><select id="lugarA"></select></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3>Usuarios</h3>
-            <table id="usersTbl"><thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody></tbody></table>
-          </div>
-
-          <div class="card">
-            <h3>Bitácora de accesos</h3>
-            <table id="logTbl"><thead><tr><th>Fecha</th><th>Email</th><th>IP</th><th>UA</th></tr></thead><tbody></tbody></table>
-          </div>
-        </div>
-
-        <div class="stack">
-          <div class="card">
-            <h3>Alertas (10 más recientes)</h3>
-            <table id="alertsTbl"><thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Tipo</th><th>Usuario</th><th>Ubicación</th><th>Descripción</th></tr></thead><tbody></tbody></table>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-  <footer><small>© CIE-297 • Prototipo académico • Tiempo real</small></footer>
-
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const API = (window.CIE297_API && window.CIE297_API.length>0) ? window.CIE297_API : "http://localhost:4000"
-    let token=null, role=null, geo=null
-
-    const ORG_LIST = ['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS']
-    const CANALES = ['BLANCO','ROJO','AZUL','AMARILLO','VERDE','ROSADO','GUINDO','CARMESI','NEGRO','KAKI','MARRON','TURQUESA','CELESTE','NARANJA']
-    const LUGARES = ['CUBA','HAWAI','BEIRUT','LOMAS']
-    const INDIC_INC = ['PETA','PLEBA','TRIMICO','PATINETA','FRUTAS','MOTOBOMBA','CEBADOR','TINEO','PINTURA NARANJA','PINTURA AZUL','PINTURA VERDE','PINTURA AMARILLA']
-
-    const qs = s=>document.querySelector(s)
-    const show = v => { qs('#landing').classList.toggle('hidden', v!=='landing'); qs('#userPanel').classList.toggle('hidden', v!=='user'); qs('#adminPanel').classList.toggle('hidden', v!=='admin') }
-    show('landing')
-
-    function fillSelect(id, list){ const s=qs(id); s.innerHTML=''; list.forEach(v=>{ const o=document.createElement('option'); o.textContent=v; s.appendChild(o) }) }
-    ;[['#organo',ORG_LIST],['#canal',CANALES],['#lugar',LUGARES],['#indicInc',INDIC_INC],['#organoA',ORG_LIST],['#canalA',CANALES],['#lugarA',LUGARES]]
-      .forEach(([id,list])=>fillSelect(id, list))
-
-    qs('#openLogin').onclick = ()=> qs('#loginModal').style.display='flex'
-    qs('#closeLogin').onclick = ()=> qs('#loginModal').style.display='none'
-
-    qs('#btnRegister').onclick = async ()=>{
-      const body={ grado:qs('#grado').value, especialidad:qs('#especialidad').value, nombres:qs('#nombres').value, apellidos:qs('#apellidos').value, email:qs('#email').value, password:qs('#password').value }
-      const r = await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-      const j = await r.json(); alert(j.ok?'Registrado. Inicie sesión.':(j.error||'Error'))
-    }
-
-    qs('#btnLogin').onclick = async ()=>{
-      const r = await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:qs('#lemail').value,password:qs('#lpassword').value})})
-      const j = await r.json()
-      if(j.token){ token=j.token; role=j.role; qs('#loginModal').style.display='none'; if(role==='admin'){ show('admin'); initMap('mapBOAdmin'); loadAdmin(); } else { show('user'); initMap('mapBO'); initSocket(); loadAlertsFeed(); } }
-      else alert(j.error||'Error')
-    }
-
-    qs('#tipo').onchange = ()=>{ qs('#incAutoWrap').style.display = (qs('#tipo').value==='INCAUTACION_AUTOS') ? 'block' : 'none' }
-
-    function initMap(id){
-      const el = document.getElementById(id); if(!el || el.dataset.ready) return
-      const map = L.map(id, { zoomControl:true }).setView([-16.5, -64.7], 5)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18}).addTo(map)
-      el.dataset.ready="1"
-    }
-
-    function initSocket(){ const s = io(API); s.on('alert:new', d=>{ addAlertCard(d) }) }
-
-    // Geo
-    qs('#btnGeo').onclick = ()=> navigator.geolocation?.getCurrentPosition(p=>{ geo={lat:p.coords.latitude,lng:p.coords.longitude}; alert('Ubicación lista') }, e=>alert('No se pudo obtener ubicación'))
-
-    // Enviar alerta (usuario)
-    qs('#btnEnviar').onclick = async ()=>{
-      const extra = qs('#tipo').value==='INCAUTACION_AUTOS' ? ` | ${qs('#indicInc').value}` : ''
-      const r = await fetch(API+'/api/alerts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({tipo:qs('#tipo').value,mensaje:`[${qs('#organo').value} | ${qs('#canal').value} | ${qs('#lugar').value}] ${qs('#mensaje').value}${extra}`,nivel:qs('#nivel').value,lat:geo?.lat,lng:geo?.lng})})
-      const j = await r.json(); if(j.ok){ qs('#mensaje').value=''; alert('Enviado') } else alert('Error')
-    }
-
-    // --- Usuario: feed ---
-    function addAlertCard(a){
-      const wrap=qs('#alertsList')
-      const d=document.createElement('div'); d.className='card'
-      d.innerHTML=`<div style="display:flex;justify-content:space-between">
-          <div style="display:flex;gap:8px;align-items:center"><span class="pill">${(a.nivel||'MEDIA').toUpperCase()}</span><small>${a.created_at||''}</small></div>
-          <span class="pill">${a.tipo}</span>
-        </div>
-        <div style="margin-top:4px"><b>${a.grado||''} ${a.nombres||''} ${a.apellidos||''}</b></div>
-        <div style="color:var(--muted);margin-top:4px">Descripción: ${a.mensaje||''}</div>`
-      wrap.prepend(d); qs('#alertsCount').textContent = wrap.querySelectorAll('.card').length
-    }
-    function addSimCard(t){
-      const wrap=qs('#alertsList'); const d=document.createElement('div'); d.className='card'
-      const when = new Date(t.ts).toLocaleString('es-BO')
-      d.innerHTML=`<div style="display:flex;justify-content:space-between">
-          <div style="display:flex;gap:8px;align-items:center"><span class="pill">MEDIA</span><small>${when}</small></div>
-          <span class="pill">SIMULADO</span></div>
-        <div style="margin-top:4px"><b>${t.callsign}</b></div>
-        <div style="color:var(--muted);margin-top:4px">Descripción: ${t.status} @ ${t.lat.toFixed(3)}, ${t.lng.toFixed(3)}</div>`
-      wrap.prepend(d); qs('#alertsCount').textContent = wrap.querySelectorAll('.card').length
-    }
-
-    // --- Admin: tablas y export ---
-    async function authedGet(p){ const r = await fetch(API+p,{headers:{'Authorization':'Bearer '+token}}); return await r.json() }
-    function addAlertRow(a){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${a.id}</td><td>${a.created_at||''}</td><td>${(a.nivel||'').toUpperCase()}</td><td>${a.tipo}</td><td>${a.grado||''} ${a.nombres||''} ${a.apellidos||''}</td><td>${(a.lat&&a.lng)?(a.lat.toFixed(4)+', '+a.lng.toFixed(4)):''}</td><td>${a.mensaje||''}</td>`; qs('#alertsTbl tbody').prepend(tr) }
-    function trimAlertsTable(){ const tb=qs('#alertsTbl tbody'); const rows=[...tb.querySelectorAll('tr')]; while(rows.length>10){ rows.pop().remove() } }
-    async function reloadAlerts(){ const data=await authedGet('/api/alerts'); const tb=qs('#alertsTbl tbody'); tb.innerHTML=''; data.forEach(addAlertRow); trimAlertsTable() }
-    async function reloadUsers(){ const data=await authedGet('/api/users'); const tb=qs('#usersTbl tbody'); tb.innerHTML=''; data.forEach(u=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${u.id}</td><td>${u.grado||''} ${u.nombres||''} ${u.apellidos||''}</td><td>${u.email}</td><td>${u.role}</td><td>${u.active?'Activo':'Bloqueado'}</td><td>${u.active?`<button data-id="${u.id}" data-act="block">Bloquear</button>`:`<button data-id="${u.id}" data-act="unblock">Desbloquear</button>`}</td>`; tb.appendChild(tr) }); tb.onclick=async e=>{ const b=e.target.closest('button'); if(!b) return; await fetch(API+`/api/users/${b.getAttribute('data-id')}/${b.getAttribute('data-act')}`,{method:'POST',headers:{'Authorization':'Bearer '+token}}); reloadUsers() } }
-    async function reloadLog(){ const data=await authedGet('/api/access-log'); const tb=qs('#logTbl tbody'); tb.innerHTML=''; data.forEach(l=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${l.created_at}</td><td>${l.email||''}</td><td>${l.ip||''}</td><td>${l.ua||''}</td>`; tb.appendChild(tr) }) }
-    function initAdminSockets(){ const s=io(API); s.on('alert:new', a=>{ addAlertRow(a); trimAlertsTable() }) }
-    async function loadAdmin(){ await reloadAlerts(); await reloadUsers(); await reloadLog(); initAdminSockets(); qs('#pdfLink').href = API + '/api/alerts.pdf?auth=' + token; qs('#csvLink').href = API + '/api/alerts.csv?auth=' + token }
-
-    // Auto refresh 5 min
-    setInterval(()=>{ try{ if(!token) return; if(role==='admin'){ reloadAlerts(); reloadUsers(); reloadLog(); } }catch{} }, 300000)
-
-    // Logout
-    qs('#btnLogout').onclick = ()=>{ token=null; role=null; show('landing') }
-    qs('#btnAdminLogout').onclick = ()=>{ token=null; role=null; show('landing') }
-  </script>
+<div id="loginModal" class="modal">
+  <div class="box">
+    <div class="title">Iniciar sesión</div>
+    <div class="col" style="gap:8px">
+      <input id="loginEmail" class="control" placeholder="email">
+      <input id="loginPass" type="password" class="control" placeholder="contraseña">
+      <div class="right" style="gap:8px"><button id="btnLogin" class="btn">Entrar</button><button id="btnCloseLogin" class="btn btn-secondary">Cerrar</button></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
