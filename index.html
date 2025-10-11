@@ -52,12 +52,14 @@
     @media (max-width:980px){ .g-2{grid-template-columns:1fr} }
   </style>
 
-  <!-- *** MUY IMPORTANTE: Carga primero la URL del backend *** -->
+  <!-- Carga primero la URL del backend -->
   <script src="config.js"></script>
 
   <script>
-    // Utiliza la URL que viene desde config.js
-    const API = (window.CIE297_API || '').replace(/\/+$/,'');
+    // Construye la URL base del backend (con respaldo por si no cargó config.js)
+    let API = (window.CIE297_API || '').replace(/\/+$/, '');
+    if (!API) API = "https://cie297-backend-1.onrender.com";
+
     const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
     const esc=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
     const authHeaders=()=>({'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('token')||'')});
@@ -72,15 +74,15 @@
       e.className='chip '+(n==='ALTA'?'chip--alta':n==='BAJA'?'chip--baja':'chip--media'); e.textContent=n; return e;
     }
 
-    // API
+    // ===== API =====
     async function apiLogin(email,password){
-      const r=await fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      const r=await fetch(API+'/'login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
       const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error login');
       localStorage.setItem('token',j.token); window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j;
     }
-    async function apiMe(){ const r=await fetch(API+'/api/me',{headers:authHeaders()}); if(!r.ok) return null; const j=await r.json(); window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j.user; }
-    async function apiCreateAccount(p){ const r=await fetch(API+'/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error al registrar'); return j; }
-    async function apiSendReport(p){ const r=await fetch(API+'/api/reports',{method:'POST',headers:authHeaders(),body:JSON.stringify(p)}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error al enviar'); return j; }
+    async function apiMe(){ const r=await fetch(API+'/'me',{headers:authHeaders()}); if(!r.ok) return null; const j=await r.json(); window._me=j.user; window._isAdmin=!!j.user?.is_admin; return j.user; }
+    async function apiCreateAccount(p){ const r=await fetch(API+'/'register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error al registrar'); return j; }
+    async function apiSendReport(p){ const r=await fetch(API+'/'reports',{method:'POST',headers:authHeaders(),body:JSON.stringify(p)}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error al enviar'); return j; }
     async function apiGetAlerts(limit=10){ const r=await fetch(API+`/api/admin/alerts?limit=${limit}`,{headers:authHeaders()}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error listas'); return j.items||[]; }
     async function apiGetAlertsByDate(day){ const r=await fetch(API+`/api/admin/alerts?date=${encodeURIComponent(day)}`,{headers:authHeaders()}); const j=await r.json(); if(!r.ok) throw new Error(j?.message||'Error fecha'); return j.items||[]; }
 
@@ -95,9 +97,10 @@
     function openLogin(){ qs('#loginModal').style.display='flex'; qs('#loginEmail').focus(); }
     function closeLogin(){ qs('#loginModal').style.display='none'; }
     async function doLogin(){
-      try{ await apiLogin(qs('#loginEmail').value.trim(),qs('#loginPass').value.trim());
-        closeLogin(); if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); } }
-      catch(e){ alert(e.message); }
+      try{
+        await apiLogin(qs('#loginEmail').value.trim(),qs('#loginPass').value.trim());
+        closeLogin(); if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); }
+      }catch(e){ alert(e.message); }
     }
 
     async function createAccount(){
@@ -168,7 +171,7 @@
 
     // Ver todas + export por día
     async function verTodas(){
-      const r=await fetch(API+'/api/admin/alerts?limit=2000',{headers:authHeaders()}); const j=await r.json();
+      const r=await fetch(API+'/'admin/alerts?limit=2000',{headers:authHeaders()}); const j=await r.json();
       const items=(j.items||[]).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
       const groups=items.reduce((acc,it)=>{ const d=new Date(it.fecha||it.created_at);
         const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; (acc[key] ||= []).push(it); return acc; },{});
@@ -195,7 +198,7 @@
     async function onExport(ev){
       const pdf=ev.target.closest('[data-exp-pdf]'); const csv=ev.target.closest('[data-exp-csv]'); if(!pdf && !csv) return;
       const day=(pdf && pdf.dataset.expPdf) || (csv && csv.dataset.expCsv);
-      const base= pdf ? '/api/admin/alerts/export/pdf' : '/api/admin/alerts/export/csv';
+      const base= pdf ? '/'admin/alerts/export/pdf' : '/'admin/alerts/export/csv';
       const url=`${API}${base}?date=${encodeURIComponent(day)}`;
       const r=await fetch(url,{headers:authHeaders()}); const blob=await r.blob(); const a=document.createElement('a');
       a.href=URL.createObjectURL(blob); a.download= (pdf?`reporte_${day}.pdf`:`reporte_${day}.csv`); a.click(); URL.revokeObjectURL(a.href);
@@ -216,7 +219,7 @@
       if(me){ if(window._isAdmin){ initAdmin(); render('admin'); } else { initUser(); render('dashboard'); } }
       else{ render('landing'); }
 
-      // Refresh periódico (lista de 10 recientes)
+      // Refresh periódico (10 recientes)
       setInterval(()=>{ if(window._isAdmin) refreshAdmin(); else refreshLatest(); }, 15000);
     });
   </script>
