@@ -1,344 +1,393 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CIE-297 | Monitoreo en Tiempo Real</title>
   <link rel="icon" href="assets/logo.png" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-VcWg9GqTz8ZqS0MZqv6F4PFU9KqO1wH8HCr5p3p3pEg=" crossorigin=""></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-o9N1j7kGStb9b9j1rR6ZK72r3F4an2y1w6f1tTNQ+3E=" crossorigin=""/>
   <style>
     :root{
       --bg:#0b1424;--card:#101b31;--soft:#12213b;--text:#e5ecff;--muted:#93a4c7;
-      --line:rgba(255,255,255,.08);
-      --hi:#ef4444;--med:#f59e0b;--lo:#22c55e;
+      --ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;--line:rgba(255,255,255,.08);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-    img{max-width:100%}
-    .brand{display:flex;gap:.75rem;align-items:center;padding:.75rem 1rem;background:#0b1424;border-bottom:1px solid var(--line)}
-    .brand img{width:34px;height:34px}
+    body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:var(--bg)}
+    a{color:#8ab4ff;text-decoration:none}
+    .brand{display:flex;gap:.75rem;align-items:center;padding:.75rem 1rem;background:#0b1424;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--line)}
+    .brand img{height:32px;width:32px;border-radius:6px;object-fit:cover}
     .brand h1{margin:0;font-size:18px;font-weight:800}
-    .spacer{flex:1}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
-      padding:.55rem 1rem;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:var(--text);cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .container{max-width:1200px;margin:0 auto;padding:16px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:12px}
-    .card h3{margin:0;padding:12px 16px;border-bottom:1px solid var(--line)}
-    .card-body{padding:16px}
-    .grid{display:grid;gap:16px}
-    @media(min-width:1100px){.grid-2{grid-template-columns:1fr 360px}}
-    label{display:block;margin:10px 0 6px 2px;color:var(--muted)}
-    input,select,textarea{width:100%;background:#0d1830;border:1px solid var(--line);border-radius:10px;padding:.75rem;color:var(--text)}
-    textarea{min-height:110px;resize:vertical}
+    .wrap{max-width:1280px;margin:0 auto;padding:16px}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+    .card h3{margin:0 0 10px 0}
+    .btn{display:inline-flex;gap:.5rem;align-items:center;padding:.55rem .9rem;background:var(--soft);color:var(--text);
+         border:1px solid var(--line);border-radius:10px;font-weight:600;cursor:pointer}
+    .btn:hover{filter:brightness(1.06)}
+    .btn-ok{background:#072015;border-color:#0f3d2a}
+    .btn-danger{background:#2a1212;border-color:#4a1e1e}
+    .row{display:flex;gap:10px;align-items:center}
+    .pill{display:inline-flex;align-items:center;gap:.4rem;padding:.22rem .6rem;border-radius:999px;border:1px solid var(--line);font-weight:700;letter-spacing:.4px}
+    .pill.low{background:#083518;border-color:#0b5c2f}
+    .pill.med{background:#3a3000;border-color:#6f4c00}
+    .pill.high{background:#3a0000;border-color:#6f1d1d}
+    .legend{display:flex;gap:.5rem;align-items:center;font-size:12px;color:var(--muted)}
+    .legend .pill{font-size:12px}
+    .mapbox{border:1px dashed rgba(255,255,255,.12);border-radius:12px;overflow:hidden}
+    #map{height:360px}
+    .sidebar{display:flex;flex-direction:column;gap:16px}
+    #alerts{max-height:410px;overflow:auto}
+    .alert{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:.7rem .9rem;margin-bottom:10px}
+    .alert .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem}
+    .alert .msg{font-weight:600}
+    .tiny{font-size:12px;color:var(--muted)}
+    .split{display:grid;grid-template-columns:1fr 340px;gap:16px}
     .hidden{display:none !important}
-    /* Mapa y alertas */
-    #map{height:340px;border:1px dashed rgba(255,255,255,.15);border-radius:10px}
-    .legend{display:flex;gap:10px;margin-top:10px}
-    .chip{padding:.2rem .7rem;border-radius:999px;border:1px solid var(--line);font-weight:700;background:#15203a}
-    .chip.low{background:#0f2b1e;color:#bbf7d0;border-color:#134e27}
-    .chip.med{background:#2b260f;color:#fde68a;border-color:#4e3d13}
-    .chip.high{background:#2b0f10;color:#fecaca;border-color:#4e1313}
-    /* Alertas scroll derecha */
-    .alerts{height:340px;overflow:auto;padding:10px}
-    .alert{background:#0f1831;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 10px 0}
-    .row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
-    .badge{padding:.2rem .6rem;border:1px solid var(--line);border-radius:999px;font-weight:700}
-    .badge.low{background:#0f2b1e;color:#bbf7d0;border-color:#134e27}
-    .badge.med{background:#2b260f;color:#fde68a;border-color:#4e3d13}
-    .badge.high{background:#2b0f10;color:#fecaca;border-color:#4e1313}
-    .muted{color:var(--muted);font-size:12px}
-    /* Modal login */
-    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55)}
-    .dialog{width:min(480px,92vw);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
-    .dialog h3{margin:0 0 8px 0}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:.55rem;border-bottom:1px solid var(--line);text-align:left}
+    .right{display:flex;justify-content:flex-end;gap:8px}
+    .chip{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--line);border-radius:999px;padding:.25rem .6rem;font-size:12px;color:var(--muted)}
+    /* Alerts compact sidebar */
+    .alerts-card .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
+    .scroll{max-height:420px;overflow:auto}
+    /* Admin only */
+    #adminPanel .section{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+    #adminPanel details{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:rgba(255,255,255,.02)}
+    #adminPanel summary{cursor:pointer;font-weight:700}
+    /* Access screen */
+    #access{margin-bottom:16px}
+    #access .btn{margin-left:8px}
+    #loginModal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;align-items:center;justify-content:center}
+    #loginModal .box{width:520px;max-width:92vw;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+    input,select,textarea{background:#0d1a2f;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:.6rem .7rem;width:100%}
+    textarea{min-height:120px;resize:vertical}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .field{margin-bottom:10px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    /* header buttons */
+    .header-actions{margin-left:auto;display:flex;gap:8px}
   </style>
 </head>
 <body>
   <header class="brand">
-    <img src="assets/logo.png" alt="Escudo">
+    <img src="assets/logo.png" alt="CIE297" />
     <h1>CIE-297 | Monitoreo en Tiempo Real</h1>
-    <div class="spacer"></div>
-    <button id="btnLogout" class="btn hidden">Cerrar sesión</button>
+    <div class="header-actions">
+      <button id="btnLoginOpen" class="btn">Iniciar sesión</button>
+      <button id="btnLogout" class="btn hidden">Cerrar sesión</button>
+      <span id="who" class="chip hidden"></span>
+    </div>
   </header>
 
-  <main class="container">
-
-    <!-- Acceso -->
-    <section id="secAccess" class="grid" style="grid-template-columns: 1fr">
-      <div class="card">
-        <h3>Registro</h3>
-        <div class="card-body grid" style="grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <label for="grado">Grado</label>
-            <select id="grado">
-              <option>MY</option><option>TCNL</option><option>CNL</option><option>GRAL</option>
-              <option>CPT</option><option>SBTTE</option><option>SGTO</option><option>CBO</option>
-            </select>
-          </div>
-          <div>
-            <label for="esp">Especialidad</label>
-            <input id="esp" placeholder="Especialidad"/>
-          </div>
-          <div>
-            <label for="nom">Nombres</label>
-            <input id="nom" placeholder="Nombres"/>
-          </div>
-          <div>
-            <label for="ape">Apellidos</label>
-            <input id="ape" placeholder="Apellidos"/>
-          </div>
-          <div>
-            <label for="emailReg">Email</label>
-            <input id="emailReg" type="email" placeholder="correo@dominio.mil"/>
-          </div>
-          <div>
-            <label for="passReg">Contraseña</label>
-            <input id="passReg" type="password" placeholder="••••••"/>
-          </div>
-          <div>
-            <button class="btn" id="btnCrear">Crear cuenta</button>
-          </div>
-          <div class="spacer"></div>
-          <div style="grid-column:1/-1">
-            <button id="btnShowLogin" class="btn">Iniciar sesión</button>
-          </div>
-        </div>
+  <div class="wrap">
+    <!-- Access notice -->
+    <div id="access" class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div><strong>Acceso</strong></div>
+        <div class="tiny">Primero inicia sesión. El contenido del sistema se mostrará después.</div>
       </div>
-    </section>
+    </div>
 
-    <!-- Modal de login (oculto) -->
-    <section id="loginModal" class="modal hidden">
-      <div class="dialog">
-        <h3>Iniciar sesión</h3>
-        <label for="emailLog">Email</label>
-        <input id="emailLog" placeholder="usuario@cie297.mil" />
-        <label for="passLog">Contraseña</label>
-        <input id="passLog" type="password" placeholder="••••••" />
-        <div style="display:flex;gap:10px;margin-top:12px">
-          <button id="btnLogin" class="btn">Entrar</button>
-          <button id="btnCloseLogin" class="btn" style="background:#0e1629">Cerrar</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Contenido principal (oculto hasta login) -->
-    <section id="secMain" class="grid grid-2 hidden">
-      <!-- Columna izquierda: Mapa, Órganos, Misiones -->
-      <div class="grid">
-        <div class="card">
-          <h3>Área Operativa</h3>
-          <div class="card-body">
-            <div id="map"></div>
-            <div class="legend">
-              <span class="chip low">BAJA</span>
-              <span class="chip med">MEDIA</span>
-              <span class="chip high">ALTA</span>
+    <!-- Operational grid (hidden until login) -->
+    <div id="main" class="hidden">
+      <div class="split">
+        <div>
+          <div class="card">
+            <h3>Área Operativa</h3>
+            <div class="mapbox"><div id="map"></div></div>
+            <div class="legend" style="margin-top:8px">
+              <span>Leyenda:</span>
+              <span class="pill low">BAJA</span>
+              <span class="pill med">MEDIA</span>
+              <span class="pill high">ALTA</span>
             </div>
+          </div>
+
+          <div class="card">
+            <h3>Misiones / Reportes rápidos</h3>
+            <div class="three">
+              <div class="field"><label>Tipo</label>
+                <select id="rTipo">
+                  <option>Operativo en zona</option>
+                  <option>Rebasado</option>
+                  <option>Cambio de locación</option>
+                  <option>Secuestro</option>
+                  <option>Incautación de autos</option>
+                  <option>Observación</option>
+                  <option>Otros</option>
+                </select>
+              </div>
+              <div class="field"><label>Nivel</label>
+                <select id="rNivel">
+                  <option value="ALTA">ALTA</option>
+                  <option value="MEDIA">MEDIA</option>
+                  <option value="BAJA">BAJA</option>
+                </select>
+              </div>
+              <div class="field"><label>Usar ubicación</label>
+                <button id="btnGeo" class="btn" type="button">Obtener</button>
+              </div>
+            </div>
+            <div class="three">
+              <div class="field"><label>Mensaje (indicativo)</label>
+                <select id="rMensaje">
+                  <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option>
+                  <option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option>
+                  <option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option><option>PINTURA AZUL</option>
+                  <option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option><option>YENAS</option>
+                  <option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option><option>RIO PILCOMAYO</option>
+                  <option>LAGUNA ESCOBAR</option><option>MALLASA</option><option>CIELO NUBLADO</option><option>HOTEL RADISSON</option>
+                  <option>HERRADURA</option><option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
+                </select>
+              </div>
+              <div class="field"><label>Lat</label><input id="rLat" placeholder="lat" /></div>
+              <div class="field"><label>Lng</label><input id="rLng" placeholder="lng" /></div>
+            </div>
+            <div class="field"><label>Descripción</label><textarea id="rDesc" placeholder="Detallar lo ocurrido..."></textarea></div>
+            <div class="right"><button id="btnSend" class="btn btn-ok">Enviar</button></div>
           </div>
         </div>
 
-        <div class="card">
-          <h3>Órganos de búsqueda</h3>
-          <div class="card-body grid" style="grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <label for="selLugar">Código indicativo del lugar</label>
-              <select id="selLugar">
-                <option>HAWAI</option><option>CUBA</option><option>BEIRUT</option><option>LOMAS</option>
-              </select>
-            </div>
-            <div>
-              <label for="selCanal">Código indicativo de canales</label>
-              <select id="selCanal">
-                <option>BLANCO</option><option>ROJO</option><option>AZUL</option><option>AMARILLO</option>
-                <option>VERDE</option><option>ROSADO</option><option>GUINDO</option><option>CARMESI</option>
-                <option>NEGRO</option><option>KAKI</option><option>MARRON</option><option>TURQUESA</option>
-                <option>CELESTE</option><option>NARANJA</option><option>PURPURA</option><option>GRIS</option>
-              </select>
-            </div>
-            <div style="grid-column:1/-1">
-              <label for="selLlamadas">Código indicativo de llamadas</label>
-              <select id="selLlamadas">
-                <option>ZEUS</option><option>ARIES</option><option>VIRGO</option><option>SAGITARIO</option>
-                <option>LIBRA</option><option>CAPRICORNIO</option><option>GEMINIS</option><option>ESCORPIO</option>
-                <option>TAURO</option><option>CANCER</option><option>LEO</option><option>PISCIS</option>
-              </select>
-            </div>
+        <aside class="sidebar">
+          <div class="card">
+            <h3>Órganos de búsqueda</h3>
+            <div id="units"></div>
           </div>
-        </div>
 
-        <div class="card">
-          <h3>Misiones / Reportes rápidos</h3>
-          <div class="card-body grid" style="grid-template-columns:1fr 220px 140px 140px auto;gap:12px">
-            <div>
-              <label for="tipo">Tipo</label>
-              <select id="tipo">
-                <option>Operativo en zona</option>
-                <option>Rebasado</option>
-                <option>Cambio de locación</option>
-                <option>Secuestro</option>
-                <option>Incautación de autos</option>
-                <option>Otros</option>
-              </select>
+          <div class="card alerts-card">
+            <div class="header">
+              <h3 style="margin:0">Alertas</h3>
+              <span id="countChip" class="chip">0</span>
             </div>
-            <div>
-              <label for="nivel">Nivel</label>
-              <select id="nivel">
-                <option>BAJA</option><option>MEDIA</option><option>ALTA</option>
-              </select>
-            </div>
-            <div>
-              <label for="lat">Lat</label>
-              <input id="lat" placeholder="lat"/>
-            </div>
-            <div>
-              <label for="lng">Lng</label>
-              <input id="lng" placeholder="lng"/>
-            </div>
-            <div style="display:flex;align-items:end">
-              <button class="btn" id="btnGeo">Usar ubicación</button>
-            </div>
-            <div style="grid-column:1/-1">
-              <label for="msg">Mensaje</label>
-              <select id="msg">
-                <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option>
-                <option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option>
-                <option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option><option>PINTURA AZUL</option>
-                <option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option>
-                <option>YENAS</option><option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option>
-                <option>RIO PILCOMAYO</option><option>LAGUNA ESCOBAR</option><option>MALLASA</option>
-                <option>CIELO NUBLADO</option><option>HOTEL RADISSON</option><option>HERRADURA</option>
-                <option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
-              </select>
-            </div>
-            <div style="grid-column:1/-1">
-              <label for="detalle">Descripción</label>
-              <textarea id="detalle" placeholder="Detallar lo ocurrido..."></textarea>
-            </div>
-            <div style="grid-column:1/-1;display:flex;justify-content:end">
-              <button id="btnEnviar" class="btn">Enviar</button>
-            </div>
+            <div id="alerts" class="scroll"></div>
           </div>
-        </div>
+        </aside>
       </div>
 
-      <!-- Columna derecha: Alertas -->
-      <div class="card">
-        <h3>Alertas</h3>
-        <div id="panelAlerts" class="alerts"></div>
-      </div>
-    </section>
-  </main>
+      <!-- Admin panel -->
+      <div id="adminPanel" class="card hidden" style="margin-top:16px">
+        <h3>Panel de administración</h3>
+        <div class="right" style="margin-bottom:10px">
+          <button id="btnExport" class="btn">Exportar PDF</button>
+        </div>
+        <details open class="section">
+          <summary>Alertas (10 más recientes)</summary>
+          <div id="adminAlerts" style="margin-top:8px;overflow:auto;max-height:320px">
+            <table class="table">
+              <thead><tr><th>ID</th><th>Fecha/Hora</th><th>Nivel</th><th>Título</th><th>Agente</th></tr></thead>
+              <tbody id="adminAlertsBody"></tbody>
+            </table>
+          </div>
+          <div class="right" style="margin-top:8px"><button id="btnVerTodas" class="btn">Ver todas</button></div>
+        </details>
 
+        <details class="section">
+          <summary>Bitácora de búsqueda</summary>
+          <div id="bitacoraWrap" class="tiny">Cargando...</div>
+        </details>
+
+        <details class="section">
+          <summary>Accesos recientes / bloqueo</summary>
+          <div id="accessWrap" class="tiny">Cargando...</div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal">
+    <div class="box">
+      <h3>Iniciar sesión</h3>
+      <div class="two">
+        <div class="field"><label>Email</label><input id="email" placeholder="usuario@cie297.mil" /></div>
+        <div class="field"><label>Contraseña</label><input id="pass" type="password" placeholder="********" /></div>
+      </div>
+      <div class="right">
+        <button id="btnLogin" class="btn">Entrar</button>
+        <button id="btnCloseLogin" class="btn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic API base (served by /config.js on your hosting) -->
+  <script src="config.js"></script>
   <script>
-    // Estado simple de login (cliente)
-    const secAccess = document.getElementById('secAccess');
-    const secMain   = document.getElementById('secMain');
-    const btnShowLogin = document.getElementById('btnShowLogin');
-    const modal = document.getElementById('loginModal');
-    const btnCloseLogin = document.getElementById('btnCloseLogin');
-    const btnLogin = document.getElementById('btnLogin');
-    const btnLogout= document.getElementById('btnLogout');
-    const emailLog = document.getElementById('emailLog');
-    const passLog  = document.getElementById('passLog');
+    // Helpers
+    const $ = (q) => document.querySelector(q);
+    const api = () => (window.CIE297_API || '').replace(/\/$/, '');
+    const auth = () => JSON.parse(localStorage.getItem('cie297_auth')||'null');
+    const setAuth = (v)=> localStorage.setItem('cie297_auth', JSON.stringify(v));
+    const isAdmin = () => (auth()?.role || '') === 'admin';
 
-    function setLogged(v){
-      if(v){
-        secAccess.classList.add('hidden');
-        secMain.classList.remove('hidden');
-        btnLogout.classList.remove('hidden');
-        initMap();
-        startSimulation();
-      }else{
-        secMain.classList.add('hidden');
-        btnLogout.classList.add('hidden');
-        secAccess.classList.remove('hidden');
+    // UI state
+    function setViewSigned(signed){
+      $('#access').classList.toggle('hidden', signed);
+      $('#main').classList.toggle('hidden', !signed);
+      $('#btnLoginOpen').classList.toggle('hidden', signed);
+      $('#btnLogout').classList.toggle('hidden', !signed);
+      $('#who').classList.toggle('hidden', !signed);
+      if(signed){
+        $('#who').textContent = (auth()?.grado || '') + ' ' + (auth()?.nombres || 'Usuario');
+        $('#adminPanel').classList.toggle('hidden', !isAdmin());
       }
     }
-    btnShowLogin.onclick = ()=> modal.classList.remove('hidden');
-    btnCloseLogin.onclick= ()=> modal.classList.add('hidden');
-    btnLogin.onclick = ()=>{
-      // Validación básica (sin exponer credenciales)
-      if(!emailLog.value || !passLog.value){ alert('Completa email y contraseña'); return; }
-      modal.classList.add('hidden');
-      setLogged(true);
-    };
-    btnLogout.onclick = ()=>{ setLogged(false); };
 
-    // Registro (solo maqueta)
-    document.getElementById('btnCrear').onclick = ()=>{
-      alert('Cuenta registrada (maqueta). Ahora pulsa "Iniciar sesión".');
-    };
-
-    // Mapa
-    let map, marker;
+    // Map
+    let map, markers = [];
     function initMap(){
-      if(map) return;
-      map = L.map('map').setView([-16.5,-68.15], 6); // Bolivia
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-        maxZoom: 18, attribution: '&copy; OpenStreetMap'
+      map = L.map('map', { zoomControl:true }).setView([-16.5,-68.15], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap'
       }).addTo(map);
     }
-    document.getElementById('btnGeo').onclick = ()=>{
-      if(!navigator.geolocation) return alert('Geolocalización no disponible');
+
+    // Units (org de búsqueda) - simple mock with IEC SAT names
+    const callsigns = ['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS'];
+    const canales = ['BLANCO','ROJO','AZUL','AMARILLO','VERDE','ROSADO','GUINDO','CARMESI','NEGRO','KAKI','MARRON','TURQUESA','CELESTE','NARANJA','PURPURA','GRIS'];
+    function renderUnits(){
+      const now = new Date();
+      const html = callsigns.slice(0,4).map((n,i)=>{
+        const canal = canales[i%canales.length];
+        const fix = now.toISOString().slice(0,19).replace('T',' ');
+        const lat = (-16.5 + Math.random()).toFixed(4), lng = (-68.1 + Math.random()).toFixed(4);
+        return `<div class="alert" style="margin:0 0 10px 0">
+          <div class="top">
+            <strong>${n}</strong>
+            <span class="tiny">${['EN MISIÓN','EN ESPERA','SIN SEÑAL'][i%3]}</span>
+          </div>
+          <div class="tiny">Canal ${canal} • Fix ${fix} • ${lat}, ${lng}</div>
+        </div>`
+      }).join('');
+      $('#units').innerHTML = html;
+    }
+
+    // Alerts
+    let alerts = [];
+    function levelPill(level){
+      const cls = level==='ALTA'?'high':(level==='MEDIA'?'med':'low');
+      return `<span class="pill ${cls}">${level}</span>`;
+    }
+    function renderAlerts(){
+      $('#countChip').textContent = alerts.length;
+      $('#alerts').innerHTML = alerts.slice(-50).reverse().map(a=>`
+        <div class="alert">
+          <div class="top">
+            <div class="row" style="gap:.5rem">
+              ${levelPill(a.nivel)}
+              <span class="tiny">${a.hora}</span>
+            </div>
+            <span class="tiny">${a.agente}</span>
+          </div>
+          <div class="msg">${a.titulo}</div>
+          <div class="tiny">${a.lat && a.lng ? `${a.lat}, ${a.lng}` : ''}</div>
+        </div>`).join('');
+    }
+
+    // Admin table
+    function renderAdminTable(){
+      const rows = alerts.slice(-10).reverse().map(a=>`
+        <tr><td>${a.id}</td><td>${a.hora}</td><td>${a.nivel}</td><td>${a.titulo}</td><td>${a.agente}</td></tr>
+      `).join('');
+      $('#adminAlertsBody').innerHTML = rows || '<tr><td colspan="5" class="tiny">Sin datos</td></tr>';
+    }
+
+    // Simulated alerts every 5s
+    function simTick(){
+      const nivel = ['ALTA','MEDIA','BAJA'][Math.floor(Math.random()*3)];
+      const agente = callsigns[Math.floor(Math.random()*callsigns.length)];
+      const tipos = ['Interferencia RF','Geocerca violada','Movimiento anómalo','Actualización de posición','Incidente'];
+      const a = {
+        id: Math.random().toString(36).slice(2,8),
+        hora: new Date().toLocaleString(),
+        nivel, agente,
+        titulo: tipos[Math.floor(Math.random()*tipos.length)],
+        lat:(-16.5 + (Math.random()*0.2-0.1)).toFixed(4),
+        lng:(-68.15 + (Math.random()*0.2-0.1)).toFixed(4)
+      };
+      alerts.push(a);
+      renderAlerts();
+      if(isAdmin()) renderAdminTable();
+    }
+
+    // Report send
+    $('#btnSend').onclick = async ()=>{
+      const payload = {
+        tipo: $('#rTipo').value, nivel: $('#rNivel').value, mensaje: $('#rMensaje').value,
+        lat: $('#rLat').value, lng: $('#rLng').value, desc: $('#rDesc').value
+      };
+      try{
+        const res = await fetch(api()+'/api/report', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        alert('Reporte enviado');
+      }catch(e){
+        alert('Report HTTP '+(e.message||e));
+      }
+    }
+    $('#btnGeo').onclick = ()=>{
+      if(!navigator.geolocation) return alert('GPS no disponible');
       navigator.geolocation.getCurrentPosition(pos=>{
-        const {latitude,longitude} = pos.coords;
-        document.getElementById('lat').value = latitude.toFixed(6);
-        document.getElementById('lng').value = longitude.toFixed(6);
-        if(map){
-          if(marker) marker.remove();
-          marker = L.marker([latitude,longitude]).addTo(map);
-          map.setView([latitude,longitude], 12);
-        }
+        $('#rLat').value = pos.coords.latitude.toFixed(6);
+        $('#rLng').value = pos.coords.longitude.toFixed(6);
       },()=>alert('No se pudo obtener ubicación'));
     };
 
-    // Envío de reporte (solo agrega al panel de alertas como demo)
-    document.getElementById('btnEnviar').onclick = ()=>{
-      const nivel = document.getElementById('nivel').value;
-      const tipo  = document.getElementById('tipo').value;
-      const msg   = document.getElementById('msg').value;
-      const lat   = document.getElementById('lat').value || '-16.5';
-      const lng   = document.getElementById('lng').value || '-68.15';
-      const who   = document.getElementById('selLlamadas').value;
-      addAlert({nivel,titulo:tipo, usuario:who, desc:msg, lat, lng});
-      alert('Reporte enviado');
+    // Admin actions
+    $('#btnExport').onclick = async ()=>{
+      try{
+        const res = await fetch(api()+'/api/admin/alerts/export?format=pdf');
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'reporte_alertas.pdf'; a.click();
+        URL.revokeObjectURL(url);
+      }catch(e){ alert('Exportación fallida: '+e.message); }
+    };
+    $('#btnVerTodas').onclick = async ()=>{
+      try{
+        const res = await fetch(api()+'/api/admin/alerts?all=1');
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const data = await res.json();
+        alerts = data || alerts;
+        renderAlerts(); renderAdminTable();
+      }catch(e){ alert('No se pudo cargar historial: '+e.message); }
     };
 
-    // Panel de alertas con simulación
-    const panel = document.getElementById('panelAlerts');
-    const calls = ['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS'];
-    const titles = ['Interferencia RF','Movimiento anómalo','Geocerca violada','Pérdida de comunicación','Operativo iniciado','Actualización de posición','Incidente'];
-    function addAlert(a){
-      const wrap = document.createElement('div');
-      wrap.className = 'alert';
-      const badgeClass = a.nivel==='ALTA'?'high':(a.nivel==='MEDIA'?'med':'low');
-      const time = new Date().toLocaleTimeString('es-BO',{hour12:false});
-      wrap.innerHTML = `
-        <div class="row">
-          <strong>${a.usuario}</strong>
-          <span class="badge ${badgeClass}">${a.nivel}</span>
-          <span class="muted">${time}</span>
-        </div>
-        <div style="margin-top:6px">${a.titulo} — <span class="muted">${a.desc}</span></div>
-        <div class="muted" style="margin-top:4px">(${Number(a.lat).toFixed(4)}, ${Number(a.lng).toFixed(4)})</div>
-      `;
-      panel.prepend(wrap);
-    }
-    let simTimer;
-    function startSimulation(){
-      if(simTimer) return;
-      simTimer = setInterval(()=>{
-        const nivel = ['BAJA','MEDIA','ALTA'][Math.floor(Math.random()*3)];
-        const titulo= titles[Math.floor(Math.random()*titles.length)];
-        const usuario=calls[Math.floor(Math.random()*calls.length)];
-        const lat=(-14 - Math.random()*4).toFixed(4);
-        const lng=(-66 - Math.random()*4).toFixed(4);
-        addAlert({nivel,titulo,usuario,desc:'SIMULADO',lat,lng});
-      },5000);
-    }
+    // Access & login
+    const modal = $('#loginModal');
+    $('#btnLoginOpen').onclick = ()=> modal.style.display='flex';
+    $('#btnCloseLogin').onclick = ()=> modal.style.display='none';
+    $('#btnLogout').onclick = ()=>{ setAuth(null); location.reload(); };
+
+    $('#btnLogin').onclick = async ()=>{
+      const email = $('#email').value.trim(), pass = $('#pass').value.trim();
+      try{
+        const res = await fetch(api()+'/api/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,pass})});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const data = await res.json();
+        setAuth(data);
+        modal.style.display='none';
+        setViewSigned(true);
+        initMap();
+        renderUnits();
+        renderAlerts();
+        renderAdminTable();
+      }catch(e){
+        alert('Error login: '+e.message);
+      }
+    };
+
+    // On load
+    window.addEventListener('load', ()=>{
+      const me = auth();
+      if(me){ setViewSigned(true); initMap(); renderUnits(); renderAlerts(); if(isAdmin()) renderAdminTable(); }
+      // simulator
+      setInterval(simTick, 5000);
+    });
   </script>
 </body>
 </html>
