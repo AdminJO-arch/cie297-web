@@ -1,569 +1,464 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CIE-297 | Monitoreo en Tiempo Real</title>
-<link rel="icon" href="assets/logo.png" />
-<link rel="preconnect" href="https://unpkg.com" />
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  crossorigin=""
-/>
-<style>
-:root{
-  --bg:#0b1424; --card:#101b31; --soft:#12213b; --muted:#93a4c7;
-  --text:#e5ecff; --accent:#3da0ff; --line:rgba(255,255,255,.08);
-  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
-}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0; font:15px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;
-  background:var(--bg); color:var(--text);
-}
-.container{max-width:1200px;margin:0 auto;padding:18px}
-.brand{display:flex;gap:10px;align-items:center}
-.brand img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 2px rgba(0,0,0,.2))}
-.brand h1{font-size:18px;margin:0;color:var(--text)}
-.card{
-  background:var(--card); border:1px solid var(--line); border-radius:12px;
-  padding:16px; box-shadow:0 0 0 1px rgba(255,255,255,.02) inset;
-}
-.grid{display:grid;gap:16px}
-@media(min-width:980px){ .grid{grid-template-columns:1.4fr .9fr} }
-
-/* Access */
-#access .row{display:grid;gap:12px}
-@media(min-width:800px){ #access .row{grid-template-columns:1fr 1fr} }
-.input, select, textarea, button{
-  background:var(--soft); border:1px solid var(--line); color:var(--text);
-  border-radius:10px; padding:10px 12px; width:100%;
-}
-label{display:block;margin:8px 0 6px;color:var(--muted);font-size:13px}
-.btn{background:#1f2a44;border:1px solid var(--line);cursor:pointer}
-.btn:hover{filter:brightness(1.1)}
-.btn.primary{background:var(--accent);color:#08101f;border:none}
-.btn.danger{background:#2a1520;border:1px solid #702b38;color:#ffb3bd}
-.btn.link{background:transparent;border:none;color:var(--muted);text-decoration:underline;cursor:pointer}
-
-/* Main layout */
-#app{display:none}
-#map{height:340px;border:1px dashed rgba(255,255,255,.15);border-radius:10px}
-.legend{display:flex;gap:12px;margin-top:10px}
-.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:#0f1b33;border:1px solid var(--line);font-weight:700;letter-spacing:.3px}
-.chip.low{background:#0f2a1b;border-color:#1c3b28}
-.chip.mid{background:#2c260f;border-color:#3e3410}
-.chip.high{background:#2a1419;border-color:#4a1e28}
-.dot{width:10px;height:10px;border-radius:50%}
-.dot.low{background:var(--ok)} .dot.mid{background:var(--warn)} .dot.high{background:var(--danger)}
-
-/* Right column */
-.stack{display:grid;gap:14px}
-.selects{display:grid;gap:10px}
-@media(min-width:980px){ .selects{grid-template-columns:1fr 1fr 1fr} }
-
-/* Alerts list */
-.alerts{max-height:360px;overflow:auto;padding-right:6px}
-.alert{background:#0f1b33;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
-.alert .top{display:flex;align-items:center;gap:10px}
-.badge{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid var(--line);}
-.badge.low{background:#0b2b1a;color:#9cffb0;border-color:#184e31}
-.badge.mid{background:#2b250b;color:#ffe49c;border-color:#4e3f18}
-.badge.high{background:#2b0b14;color:#ffb3bd;border-color:#4e1826}
-.small{font-size:12px;color:#9db2d1}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-
-/* Reports */
-#report textarea{min-height:120px;}
-
-/* Admin footer controls */
-.controls{display:flex;gap:10px;flex-wrap:wrap}
-.table{width:100%;border-collapse:separate;border-spacing:0 8px}
-.table th,.table td{padding:8px 10px}
-.table th{color:#9db2d1;font-weight:600;text-align:left}
-.row{background:#0f1b33}
-.row td{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.row:first-child td{border-top-left-radius:10px;border-top-right-radius:10px}
-.row:last-child td{border-bottom-left-radius:10px;border-bottom-right-radius:10px}
-
-/* Modal */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
-.modal .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;max-width:560px;width:100%}
-.modal .panel .grid2{display:grid;gap:10px}
-@media(min-width:560px){ .modal .panel .grid2{grid-template-columns:1fr 1fr} }
-
-footer{margin:30px 0 16px;color:#8aa0c5;text-align:center;font-size:12px}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>CIE-297 | Monitoreo en Tiempo Real</title>
+  <link rel="icon" href="assets/logo.png"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    :root{
+      --bg:#0b1424;--card:#101b31;--soft:#12213b;--text:#e5ecff;--muted:#93a4c7;
+      --ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;--line:rgba(255,255,255,.06)
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:var(--bg)}
+    a{color:#8ab4ff;text-decoration:none}
+    .container{max-width:1200px;margin:0 auto;padding:16px}
+    .appbar{display:flex;gap:.75rem;justify-content:space-between;padding:.75rem 1rem;background:#0b1424;position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line)}
+    .brand{display:flex;gap:.75rem;align-items:center;font-weight:800;font-size:18px}
+    .brand img{height:32px;width:32px;object-fit:contain;border-radius:8px}
+    .actions{display:flex;gap:.5rem;align-items:center}
+    .btn{display:inline-block;padding:.6rem .9rem;border-radius:999px;border:1px solid var(--line);color:var(--text);background:transparent}
+    .btn:hover{filter:brightness(1.08)}
+    .btn-primary{background:#182240;border-color:#4f6b6b;color:#e9f9a9}
+    .btn-danger{background:#182120;border-color:#ff6b6b;color:#ff9aa9}
+    .grid{display:grid;gap:16px}
+    @media(min-width:980px){ .grid{grid-template-columns:2fr 1fr} }
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+    .row{display:flex;gap:10px;align-items:center}
+    .control{width:100%;background:#0b1430;border:1px solid var(--line);border-radius:10px;padding:.65rem;color:var(--text);}
+    .control:focus{outline:1px solid #66a3ff}
+    .legend{display:flex;gap:.5rem;margin:.4rem 0 .6rem}
+    .chip{display:inline-block;padding:.35rem .7rem;border-radius:999px;border:1px solid var(--line);font-weight:700;letter-spacing:.25px}
+    .chip--ok{color:var(--ok);border-color:var(--ok)}
+    .chip--warn{color:var(--warn);border-color:var(--warn)}
+    .chip--danger{color:var(--danger);border-color:var(--danger)}
+    .map{height:360px;border:1px dashed rgba(255,255,255,.15);border-radius:10px}
+    .rightcol{display:flex;flex-direction:column;gap:12px}
+    .list{display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
+    .item{border:1px solid var(--line);background:#0e1a30;border-radius:12px;padding:.7rem .9rem}
+    .item h4{margin:0 0 .35rem 0}
+    .muted{color:var(--muted)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:.55rem;border-bottom:1px solid var(--line);text-align:left}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin:.4rem 0 .8rem}
+    .pill{padding:.25rem .6rem;border-radius:999px;background:#15233f;font-weight:700}
+    .hidden{display:none !important}
+    /* modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;padding:16px;z-index:100}
+    .modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:min(560px,95vw)}
+    .split{display:grid;gap:12px}
+    @media(min-width:860px){ .split{grid-template-columns:1fr 1fr} }
+    .hdr{font-weight:800;margin:.2rem 0 .7rem}
+    small.hint{color:#93a4c7;display:block;margin-top:.35rem}
+  </style>
 </head>
 <body>
-  <div class="container">
+  <header class="appbar">
     <div class="brand">
-      <img src="assets/logo.png" alt="Escudo" onerror="this.style.visibility='hidden'"/>
-      <h1>CIE-297 | Monitoreo en Tiempo Real</h1>
-      <div style="margin-left:auto">
-        <button id="btnToggleRole" class="btn link" title="Muestra/oculta botones de administración" style="display:none">Cambiar a Admin/Usuario</button>
-        <button id="btnLogout" class="btn" style="display:none">Cerrar sesión</button>
-        <button id="btnOpenLogin" class="btn primary">Iniciar sesión</button>
+      <img src="assets/logo.png" alt="CIE-297"/>
+      CIE-297 | Monitoreo en Tiempo Real
+    </div>
+    <div class="actions">
+      <button id="btnAdminToggle" class="btn">Usuario</button>
+      <button id="btnOpenLogin" class="btn btn-primary">Iniciar sesión</button>
+      <button id="btnLogout" class="btn btn-danger hidden">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <div class="container grid">
+    <!-- izquierda -->
+    <div class="left">
+      <div class="card">
+        <h3>Área Operativa</h3>
+        <div id="map" class="map"></div>
+        <div class="legend">
+          <span class="chip chip--ok">BAJA</span>
+          <span class="chip chip--warn">MEDIA</span>
+          <span class="chip chip--danger">ALTA</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Misiones / Reportes rápidos</h3>
+        <div class="row">
+          <div class="control-wrap" style="flex:1">
+            <label>Tipo</label>
+            <select id="repTipo" class="control">
+              <option>Operativo en zona</option>
+              <option>Incautación de autos</option>
+              <option>Rebasado</option>
+              <option>Observación</option>
+              <option>Interferencia RF</option>
+              <option>Movimiento anómalo</option>
+            </select>
+          </div>
+          <div class="control-wrap" style="width:220px">
+            <label>Nivel</label>
+            <select id="repNivel" class="control">
+              <option>BAJA</option>
+              <option>MEDIA</option>
+              <option>ALTA</option>
+            </select>
+          </div>
+          <div class="control-wrap" style="width:200px">
+            <label>Usar ubicación</label>
+            <button id="btnLoc" class="btn">Usar ubicación</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div class="control-wrap" style="flex:1">
+            <label>Mensaje</label>
+            <select id="repMsg" class="control">
+              <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option>
+              <option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option>
+              <option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option><option>PINTURA AZUL</option>
+              <option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option><option>YENAS</option>
+              <option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option><option>RIO PILCOMAYO</option>
+              <option>LAGUNA ESCOBAR</option><option>MALLASA</option><option>CIELO NUBLADO</option><option>HOTEL RADISSON</option>
+              <option>HERRADURA</option><option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
+            </select>
+          </div>
+          <input id="repLat" class="control" style="width:160px" placeholder="lat"/>
+          <input id="repLng" class="control" style="width:160px" placeholder="lng"/>
+        </div>
+        <textarea id="repDesc" class="control" rows="4" placeholder="Descripción — Detallar lo ocurrido…" style="margin-top:10px"></textarea>
+        <div class="row" style="justify-content:flex-end;margin-top:10px">
+          <button id="btnEnviar" class="btn btn-primary">Enviar</button>
+        </div>
       </div>
     </div>
 
-    <!-- Acceso -->
-    <section id="access" class="card" style="margin-top:16px">
-      <h3>Acceso</h3>
-      <div class="row">
-        <div>
-          <form id="frmRegister">
-            <div class="grid2">
-              <div>
-                <label>Grado</label>
-                <select id="grado" class="input">
-                  <option>SB TTE</option><option>MY</option><option>TCNL</option>
-                  <option>CNL</option><option>GRAL</option>
-                </select>
-              </div>
-              <div>
-                <label>Especialidad</label>
-                <input id="especialidad" class="input" placeholder="DEM, INF, CAB..." />
-              </div>
-            </div>
-            <div class="grid2">
-              <div><label>Nombres</label><input id="nombres" class="input" /></div>
-              <div><label>Apellidos</label><input id="apellidos" class="input" /></div>
-            </div>
-            <div class="grid2">
-              <div><label>Email</label><input id="email" class="input" placeholder="usuario@cie297.mil" /></div>
-              <div><label>Contraseña</label><input id="pass" type="password" class="input" /></div>
-            </div>
-            <div style="margin-top:10px"><button class="btn" type="submit">Crear cuenta</button></div>
-          </form>
-        </div>
-        <div>
-          <h4>Iniciar sesión</h4>
-          <button class="btn primary" id="btnShowLogin">Iniciar sesión</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- App -->
-    <section id="app" class="grid" style="margin-top:16px">
-      <!-- izquierda -->
+    <!-- derecha -->
+    <div class="rightcol">
       <div class="card">
-        <h3>Área Operativa</h3>
-        <div id="map"></div>
-        <div class="legend">
-          <span class="chip low"><span class="dot low"></span> BAJA</span>
-          <span class="chip mid"><span class="dot mid"></span> MEDIA</span>
-          <span class="chip high"><span class="dot high"></span> ALTA</span>
+        <div class="topbar">
+          <h3 style="margin:0">Órganos de búsqueda</h3>
+          <span id="orgCount" class="pill">0 activos</span>
+        </div>
+        <div class="row" style="gap:12px;margin-bottom:8px">
+          <div style="flex:1">
+            <label>Código indicativo del lugar</label>
+            <select id="orgLugar" class="control">
+              <option>HAWAI</option><option>CUBA</option><option>BEIRUT</option><option>LOMAS</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label>Código indicativo de canales</label>
+            <select id="orgCanal" class="control">
+              <option>BLANCO</option><option>ROJO</option><option>AZUL</option><option>AMARILLO</option><option>VERDE</option>
+              <option>ROSADO</option><option>GUINDO</option><option>CARMEESI</option><option>NEGRO</option><option>KAKI</option>
+              <option>MARRON</option><option>TURQUESA</option><option>CELESTE</option><option>NARANJA</option><option>PURPURA</option><option>GRIS</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label>Código indicativo de llamadas</label>
+            <select id="orgLlamada" class="control">
+              <option>ZEUS</option><option>ARIES</option><option>VIRGO</option><option>SAGITARIO</option><option>LIBRA</option>
+              <option>CAPRICORNIO</option><option>GEMINIS</option><option>ESCORPIO</option><option>TAURO</option><option>CANCER</option>
+              <option>LEO</option><option>PISCIS</option>
+            </select>
+          </div>
         </div>
 
-        <div id="report" style="margin-top:14px">
-          <h3>Misiones / Reportes rápidos</h3>
-          <div class="grid2">
-            <div>
-              <label>Tipo</label>
-              <select id="tipo" class="input">
-                <option>Operativo en zona</option>
-                <option>Incautación de autos</option>
-                <option>Rebasado</option>
-                <option>Observación</option>
-                <option>Otros</option>
-              </select>
-            </div>
-            <div>
-              <label>Nivel</label>
-              <select id="nivel" class="input">
-                <option>BAJA</option><option>MEDIA</option><option>ALTA</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid2" style="margin-top:8px">
-            <div>
-              <label>Mensaje</label>
-              <select id="mensaje" class="input">
-                <option>PETA</option><option>LAMBO</option><option>TRICICLO</option><option>PATINETA</option><option>FRUTAS</option><option>MOTOBOMBA</option><option>CUCHARA</option><option>TENEDOR</option><option>CHISGUETE</option><option>PINTURA ROJA</option><option>PINTURA NARANJA</option><option>PINTURA AZUL</option><option>PINTURA VERDE</option><option>PINTURA AMARILLA</option><option>PINTURA CAFE</option><option>YENAS</option><option>LOBOS</option><option>LIEBRES</option><option>JUGANDO</option><option>RIO PILCOMAYO</option><option>LAGUNA ESCOBAR</option><option>MALLASA</option><option>CIELO NUBLADO</option><option>HOTEL RADISSON</option><option>HERRADURA</option><option>FEDERAL</option><option>CAIMAN</option><option>LAGARTOS</option>
-              </select>
-            </div>
-            <div class="grid2">
-              <div>
-                <label>Lat</label>
-                <input id="lat" class="input mono" placeholder="lat" />
-              </div>
-              <div>
-                <label>Lng</label>
-                <input id="lng" class="input mono" placeholder="lng" />
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-top:8px">
-            <label>Descripción</label>
-            <textarea id="desc" class="input" placeholder="Detallar lo ocurrido..."></textarea>
-          </div>
-
-          <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
-            <button id="btnGeo" class="btn">Usar ubicación</button>
-            <div style="margin-left:auto"></div>
-            <button id="btnEnviar" class="btn primary">Enviar</button>
-          </div>
-        </div>
+        <div id="alertList" class="list"></div>
       </div>
 
-      <!-- derecha -->
-      <div class="stack">
-        <div class="card">
-          <h3>Órganos de búsqueda</h3>
-          <div class="selects">
-            <div>
-              <label>Código indicativo del lugar</label>
-              <select id="selLugar" class="input">
-                <option>HAWAI</option><option>CUBA</option><option>BEIRUT</option><option>LOMAS</option>
-              </select>
-            </div>
-            <div>
-              <label>Código indicativo de canales</label>
-              <select id="selCanal" class="input">
-                <option>BLANCO</option><option>ROJO</option><option>AZUL</option><option>AMARILLO</option>
-                <option>VERDE</option><option>ROSADO</option><option>GUINDO</option><option>CARMESI</option>
-                <option>NEGRO</option><option>KAKI</option><option>MARRON</option><option>TURQUESA</option>
-                <option>CELESTE</option><option>NARANJA</option><option>PURPURA</option><option>GRIS</option>
-              </select>
-            </div>
-            <div>
-              <label>Código indicativo de llamadas</label>
-              <select id="selLlamada" class="input">
-                <option>ZEUS</option><option>ARIES</option><option>VIRGO</option><option>SAGITARIO</option>
-                <option>LIBRA</option><option>CAPRICORNIO</option><option>GEMINIS</option><option>ESCORPIO</option>
-                <option>TAURO</option><option>CANCER</option><option>LEO</option><option>PISCIS</option>
-              </select>
-            </div>
-          </div>
+      <div id="adminPanel" class="card hidden">
+        <div class="topbar">
+          <h3 style="margin:0">Alertas</h3>
+          <span id="badgeQty" class="pill">0</span>
         </div>
-
-        <div class="card">
-          <div style="display:flex;align-items:center;gap:10px">
-            <h3 style="margin:0">Alertas</h3>
-            <small id="alertCount" class="small"></small>
-            <div style="margin-left:auto" class="controls" id="adminControls" hidden>
-              <button class="btn" id="btnVerTodas">Ver todas</button>
-              <button class="btn" id="btnExport">Exportar PDF</button>
-              <button class="btn" id="btnAccesos">Accesos</button>
-            </div>
-          </div>
-          <div id="alertList" class="alerts"></div>
+        <div class="row" style="gap:8px">
+          <button id="btnVerTodas" class="btn">Ver todas</button>
+          <button id="btnExport" class="btn">Exportar PDF</button>
+          <button id="btnAccesos" class="btn">Accesos</button>
         </div>
-
-        <div class="card" id="panelAdminTabla" hidden>
-          <h3>Alertas (10 más recientes)</h3>
-          <table class="table" id="tblRecent">
+        <div style="margin-top:10px">
+          <table id="tabla10">
             <thead><tr><th>ID</th><th>Fecha</th><th>Nivel</th><th>Título</th><th>Agente</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
-    </section>
-
-    <footer>© CIE-297 — Prototipo académico</footer>
-  </div>
-
-  <!-- Modal login -->
-  <div id="loginModal" class="modal" role="dialog" aria-modal="true">
-    <div class="panel">
-      <h3 style="margin-top:0">Iniciar sesión</h3>
-      <div class="grid2">
-        <div>
-          <label>Email</label>
-          <input id="loginEmail" class="input" placeholder="email@cie297.mil" />
-        </div>
-        <div>
-          <label>Contraseña</label>
-          <input id="loginPass" type="password" class="input" />
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:12px">
-        <button id="btnLogin" class="btn primary">Entrar</button>
-        <button id="btnCloseLogin" class="btn">Cerrar</button>
-      </div>
     </div>
   </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-o9N1j7kGStb6Z8Va+P8zq+4o/VZ0s3O2F3R2aVY4bPc=" crossorigin=""></script>
-<script>
-const ADMIN = {email:'admin@cie297.mil', pass:'Admin123!'};
-const CALLSIGNS = ['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS'];
-const TITULOS = ['INCIDENTE','PATRULLA','RELEVO','OBSERVACION','SEGUIMIENTO','REPORTE'];
-const NIVELES = ['BAJA','MEDIA','ALTA'];
-
-const state = {
-  user:null, isAdmin:false, alerts:[], blocked:new Set(), accesses:[]
-};
-
-// LocalStorage helpers
-const LS = {
-  get(k,def){ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def; } },
-  set(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-};
-
-// Restore blocks & users
-state.blocked = new Set(LS.get('blocked', []));
-const users = LS.get('users', []);
-
-// UI refs
-const app = document.getElementById('app');
-const access = document.getElementById('access');
-const btnOpenLogin = document.getElementById('btnOpenLogin');
-const btnLogout = document.getElementById('btnLogout');
-const btnShowLogin = document.getElementById('btnShowLogin');
-const modal = document.getElementById('loginModal');
-const btnLogin = document.getElementById('btnLogin');
-const btnCloseLogin = document.getElementById('btnCloseLogin');
-const adminControls = document.getElementById('adminControls');
-const panelAdminTabla = document.getElementById('panelAdminTabla');
-const tblRecent = document.querySelector('#tblRecent tbody');
-const alertList = document.getElementById('alertList');
-const alertCount = document.getElementById('alertCount');
-
-document.getElementById('btnOpenLogin').onclick = ()=> showLogin(true);
-document.getElementById('btnShowLogin').onclick = ()=> showLogin(true);
-btnCloseLogin.onclick = ()=> showLogin(false);
-modal.addEventListener('click', (e)=>{ if(e.target===modal) showLogin(false) });
-
-function showLogin(v){ modal.style.display = v?'flex':'none'; }
-
-btnLogin.onclick = ()=>{
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  if(!email || !pass){ alert('Completa email y contraseña'); return; }
-
-  // blocked?
-  if(state.blocked.has(email)){ alert('Acceso bloqueado. Contacte al administrador.'); return; }
-
-  if(email===ADMIN.email && pass===ADMIN.pass){
-    login({email, rol:'ADMIN'});
-    return;
-  }
-  const u = users.find(x=>x.email===email && x.pass===pass);
-  if(!u){ alert('Credenciales inválidas'); return; }
-  login({email:u.email, rol:'USER'});
-};
-
-function login(user){
-  showLogin(false);
-  state.user = user; state.isAdmin = user.rol==='ADMIN';
-  LS.set('lastUser', state.user);
-  // acceso log
-  const acc = LS.get('accesos', []);
-  acc.push({email:user.email, rol:user.rol, ts:Date.now()});
-  LS.set('accesos', acc);
-  state.accesses = acc;
-
-  access.style.display='none';
-  app.style.display='grid';
-  btnOpenLogin.style.display='none';
-  btnLogout.style.display='inline-block';
-  adminControls.hidden = !state.isAdmin;
-  panelAdminTabla.hidden = !state.isAdmin;
-
-  renderAlerts();
-  renderRecent();
-}
-
-btnLogout.onclick = ()=>{
-  state.user=null; state.isAdmin=false;
-  app.style.display='none';
-  access.style.display='block';
-  btnOpenLogin.style.display='inline-block';
-  btnLogout.style.display='none';
-};
-
-// Register
-document.getElementById('frmRegister').addEventListener('submit', (e)=>{
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim();
-  const pass = document.getElementById('pass').value;
-  const nombres = document.getElementById('nombres').value.trim();
-  const apellidos = document.getElementById('apellidos').value.trim();
-  if(!email || !pass || !nombres || !apellidos){ alert('Completa todos los campos'); return; }
-  if(users.some(u=>u.email===email)){ alert('Ese email ya está registrado'); return; }
-  users.push({email, pass, nombres, apellidos});
-  LS.set('users', users);
-  alert('Cuenta creada. Ahora inicia sesión.');
-});
-
-// Map
-let map, marker;
-function initMap(){
-  map = L.map('map').setView([-16.5, -68.15], 6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap' }).addTo(map);
-}
-initMap();
-
-document.getElementById('btnGeo').onclick = ()=>{
-  if(!navigator.geolocation){ return alert('Sin geolocalización'); }
-  navigator.geolocation.getCurrentPosition((pos)=>{
-    const {latitude, longitude} = pos.coords;
-    document.getElementById('lat').value = latitude.toFixed(6);
-    document.getElementById('lng').value = longitude.toFixed(6);
-    if(marker) marker.remove();
-    marker = L.marker([latitude, longitude]).addTo(map);
-    map.setView([latitude, longitude], 12);
-  }, ()=> alert('No se obtuvo la ubicación'));
-};
-
-// Report submit
-document.getElementById('btnEnviar').onclick = ()=>{
-  if(!state.user) return alert('Primero inicia sesión');
-  const nivel = document.getElementById('nivel').value;
-  const tipo = document.getElementById('tipo').value;
-  const mensaje = document.getElementById('mensaje').value;
-  const lat = parseFloat(document.getElementById('lat').value || '-16.5');
-  const lng = parseFloat(document.getElementById('lng').value || '-68.15');
-  const desc = document.getElementById('desc').value.trim();
-  const who = document.getElementById('selLlamada').value;
-  pushAlert({who, nivel, title:tipo, lat, lng, desc, simulated:false});
-};
-
-// Alerts
-function pushAlert(a){
-  const id = Math.random().toString(36).slice(2,7);
-  a.id=id; a.ts=Date.now();
-  if(!a.title) a.title = TITULOS[Math.floor(Math.random()*TITULOS.length)];
-  state.alerts.unshift(a);
-  if(state.alerts.length>200) state.alerts.pop();
-  renderAlerts();
-  renderRecent();
-}
-function fmtTime(ts){ const d=new Date(ts); return d.toLocaleString(); }
-function badge(level){
-  const cls = level==='ALTA'?'high':(level==='MEDIA'?'mid':'low');
-  return `<span class="badge ${cls}">${level}</span>`;
-}
-function renderAlerts(){
-  alertCount.textContent = `(${state.alerts.length})`;
-  alertList.innerHTML = state.alerts.slice(0,50).map(a=>`
-    <div class="alert">
-      <div class="top">
-        ${badge(a.nivel)} <span class="small mono">${fmtTime(a.ts)}</span>
-        <span class="badge" style="margin-left:auto">${a.simulated?'SIMULADO':'USUARIO'}</span>
+  <!-- modal login / registro -->
+  <div id="dlg" class="modal">
+    <div class="box">
+      <div class="split">
+        <div>
+          <div class="hdr">Registro</div>
+          <div class="row">
+            <select id="regGrado" class="control">
+              <option>SLDO</option><option>SGT</option><option>SOF</option><option>SBTTE</option>
+              <option>TTE</option><option>CAP</option><option>MY</option><option>TCNL</option>
+              <option>CNL</option><option>GRAL</option>
+            </select>
+            <input id="regEsp" class="control" placeholder="Especialidad"/>
+          </div>
+          <div class="row">
+            <input id="regNombres" class="control" placeholder="Nombres"/>
+            <input id="regApellidos" class="control" placeholder="Apellidos"/>
+          </div>
+          <input id="regEmail" class="control" placeholder="Email"/>
+          <input id="regPass" class="control" placeholder="Contraseña" type="password"/>
+          <button id="btnCrear" class="btn">Crear cuenta</button>
+        </div>
+        <div>
+          <div class="hdr">Iniciar sesión</div>
+          <input id="inEmail" class="control" placeholder="Email"/>
+          <input id="inPass" class="control" placeholder="Contraseña" type="password"/>
+          <div class="row" style="justify-content:flex-end">
+            <button id="btnEntrar" class="btn btn-primary">Entrar</button>
+            <button id="btnCerrarDlg" class="btn">Cerrar</button>
+          </div>
+          <small class="hint">Primero inicia sesión o crea una cuenta. El contenido del sistema se mostrará después.</small>
+        </div>
       </div>
-      <div style="margin-top:6px;font-weight:700">${a.who} — ${a.title}</div>
-      <div class="small mono" style="margin-top:2px">Lat ${a.lat?.toFixed? a.lat.toFixed(4):a.lat}, Lng ${a.lng?.toFixed? a.lng.toFixed(4):a.lng}</div>
-      ${a.desc? `<div class="small" style="margin-top:4px">Descripción: ${a.desc}</div>`:''}
     </div>
-  `).join('');
-}
-function renderRecent(){
-  if(panelAdminTabla.hidden) return;
-  const rows = state.alerts.slice(0,10).map(a=>`
-    <tr class="row">
-      <td class="mono">${a.id}</td>
-      <td class="mono">${new Date(a.ts).toLocaleString()}</td>
-      <td>${a.nivel}</td>
-      <td>${a.title}</td>
-      <td>${a.who}</td>
-    </tr>`).join('');
-  tblRecent.innerHTML = rows;
-}
+  </div>
 
-// Simulador (cada 5 seg)
-setInterval(()=>{
-  // solo simulo cuando alguien ya entró (evita ruido en portada)
-  if(!state.user) return;
-  const nivel = NIVELES[Math.floor(Math.random()*NIVELES.length)];
-  const who = CALLSIGNS[Math.floor(Math.random()*CALLSIGNS.length)];
-  const lat = -16.4 + (Math.random() * 1.0 - .5); // alrededor de Bolivia
-  const lng = -68.13 + (Math.random() * 1.0 - .5);
-  pushAlert({who, nivel, lat, lng, simulated:true});
-}, 5000);
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // --- util / storage
+    const store = {
+      get: (k,def) => JSON.parse(localStorage.getItem(k)??JSON.stringify(def)),
+      set: (k,v) => localStorage.setItem(k, JSON.stringify(v))
+    };
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-// Admin: export PDF
-document.getElementById('btnExport').onclick = ()=>{
-  if(!state.isAdmin) return;
-  const rows = state.alerts.slice(0,100).map(a=>`
-    <tr>
-      <td class="mono">${a.id}</td>
-      <td class="mono">${new Date(a.ts).toLocaleString()}</td>
-      <td>${a.nivel}</td>
-      <td>${a.title}</td>
-      <td>${a.who}</td>
-    </tr>`).join('');
-  const html = `
-  <html><head><meta charset="utf-8">
-  <style>
-    body{font:14px Arial;padding:20px}
-    h2{margin:0 0 6px 0}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}
-    .mono{font-family:ui-monospace,Consolas,monospace}
-    .head{display:flex;align-items:center;gap:10px}
-    .head img{width:58px;height:58px;object-fit:contain}
-  </style></head>
-  <body>
-    <div class="head">
-      <img src="assets/logo.png" alt="Logo"/>
-      <div><h2>CIE-297 – Reporte de Alertas</h2><div class="mono">${new Date().toLocaleString()}</div></div>
-    </div>
-    <table><thead><tr><th>ID</th><th>Fecha y hora</th><th>Nivel</th><th>Título</th><th>Agente</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-  </body></html>`;
-  const w = window.open('','_blank');
-  w.document.write(html); w.document.close(); w.focus(); w.print();
-};
+    const state = {
+      admin:false,
+      me:null,
+      alerts:[],
+      accesses: store.get('cie297.accesses', [])
+    };
 
-// Admin: ver todas por día
-document.getElementById('btnVerTodas').onclick = ()=>{
-  if(!state.isAdmin) return;
-  const porDia = {};
-  state.alerts.forEach(a=>{
-    const d = new Date(a.ts).toISOString().slice(0,10);
-    (porDia[d]||(porDia[d]=[])).push(a);
-  });
-  const w = window.open('','_blank');
-  w.document.write('<html><head><meta charset=utf-8><style>body{font:14px Arial;padding:16px}.mono{font-family:ui-monospace,monospace} .card{margin:10px 0;border:1px solid #ddd;padding:8px;border-radius:8px}</style></head><body>');
-  w.document.write('<h2>Alertas por día</h2>');
-  Object.keys(porDia).sort().reverse().forEach(d=>{
-    w.document.write('<div class="card"><h3>'+d+'</h3><ul>');
-    porDia[d].forEach(a=> w.document.write('<li class="mono">'+a.id+' — '+new Date(a.ts).toLocaleTimeString()+' — '+a.nivel+' — '+a.title+' — '+a.who+'</li>'));
-    w.document.write('</ul></div>');
-  });
-  w.document.write('</body></html>');
-  w.document.close(); w.focus();
-};
+    // --- mapa Bolivia
+    let map, marker;
+    function initMap(){
+      map = L.map('map', {zoomControl:true}).setView([-16.5,-68.15], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution:'&copy; OpenStreetMap'
+      }).addTo(map);
+    }
 
-// Admin: accesos (ver / bloquear)
-document.getElementById('btnAccesos').onclick = ()=>{
-  if(!state.isAdmin) return;
-  const lista = LS.get('accesos', []);
-  const w = window.open('','_blank');
-  w.document.write(`<html><head><meta charset="utf-8"><style>
-    body{font:14px Arial;padding:16px} table{width:100%;border-collapse:collapse}
-    th,td{border:1px solid #ccc;padding:6px 8px} .mono{font-family:ui-monospace,monospace}
-    button{padding:4px 8px}
-  </style></head><body>`);
-  w.document.write('<h3>Accesos</h3>');
-  w.document.write('<table><thead><tr><th>Email</th><th>Rol</th><th>Fecha</th><th>Acción</th></tr></thead><tbody>');
-  lista.slice().reverse().forEach(a=>{
-    const blocked = state.blocked.has(a.email);
-    w.document.write(`<tr><td class="mono">${a.email}</td><td>${a.rol}</td><td class="mono">${new Date(a.ts).toLocaleString()}</td>
-      <td><button onclick="window.opener.toggleBlock('${a.email}')">${blocked?'Desbloquear':'Bloquear'}</button></td></tr>`);
-  });
-  w.document.write('</tbody></table></body></html>');
-  w.document.close(); w.focus();
-};
-window.toggleBlock = (email)=>{
-  if(state.blocked.has(email)) state.blocked.delete(email);
-  else state.blocked.add(email);
-  LS.set('blocked', Array.from(state.blocked));
-  alert((state.blocked.has(email)?'Bloqueado ':'Desbloqueado ')+email);
-};
+    // --- UI helpers
+    function toast(msg){ alert(msg); }
+    function fmtDate(ts){
+      const d = new Date(ts);
+      const pad = n=> String(n).padStart(2,'0');
+      const date = \`\${d.getFullYear()}-\${pad(d.getMonth()+1)}-\${pad(d.getDate())}\`;
+      const time = \`\${pad(d.getHours())}:\${pad(d.getMinutes())}:\${pad(d.getSeconds())}\`;
+      return \`\${date} \${time}\`;
+    }
 
-// Start hidden app, show after login
-// done in login()
+    // --- login dialog
+    const dlg = $('#dlg');
+    $('#btnOpenLogin').onclick = ()=> dlg.style.display='grid';
+    $('#btnCerrarDlg').onclick = ()=> dlg.style.display='none';
 
-</script>
+    $('#btnCrear').onclick = ()=>{
+      const u = {
+        grado: $('#regGrado').value,
+        especialidad: $('#regEsp').value,
+        nombres: $('#regNombres').value,
+        apellidos: $('#regApellidos').value,
+        email: $('#regEmail').value.trim(),
+        pass: $('#regPass').value.trim(),
+        admin:false,
+        created: Date.now()
+      };
+      if(!u.email || !u.pass) return toast('Completa email y contraseña');
+      const users = store.get('cie297.users', []);
+      if(users.some(x=>x.email===u.email)) return toast('El email ya existe');
+      users.push(u); store.set('cie297.users', users);
+      toast('Cuenta creada. Ahora inicia sesión.');
+    };
+
+    $('#btnEntrar').onclick = ()=>{
+      const email = $('#inEmail').value.trim();
+      const pass = $('#inPass').value.trim();
+      const users = store.get('cie297.users', []);
+      // admin fijo
+      let me = null;
+      if(email==='admin@cie297.mil' && pass==='Admin123!'){
+        me = { email, nombres:'TCNL Administrador', admin:true };
+      }else{
+        me = users.find(u=>u.email===email && u.pass===pass);
+      }
+      if(!me){ toast('Error login: credenciales'); return; }
+      state.me = me; state.admin = !!me.admin;
+      $('#btnLogout').classList.remove('hidden');
+      $('#btnOpenLogin').classList.add('hidden');
+      $('#adminPanel').classList.toggle('hidden', !state.admin);
+      $('#btnAdminToggle').textContent = state.admin?'Admin':'Usuario';
+      dlg.style.display='none';
+      // registra acceso
+      state.accesses.push({email: me.email, at: Date.now(), blocked:false});
+      store.set('cie297.accesses', state.accesses);
+      render();
+    };
+
+    $('#btnLogout').onclick = ()=>{
+      state.me=null; state.admin=false;
+      $('#btnLogout').classList.add('hidden');
+      $('#btnOpenLogin').classList.remove('hidden');
+      $('#adminPanel').classList.add('hidden');
+      $('#btnAdminToggle').textContent = 'Usuario';
+      render();
+    };
+
+    // --- órganos no persistentes, solo efecto
+    function rand(a){ return a[Math.floor(Math.random()*a.length)] }
+    function addFakeAlert(){
+      const niveles=['BAJA','MEDIA','ALTA'];
+      const tipos=['OBSERVACIÓN','INTERFERENCIA RF','MOVIMIENTO ANÓMALO','REBASE','INCIDENTE','PATRULLA','RELEVO'];
+      const agentes=['ZEUS','ARIES','VIRGO','SAGITARIO','LIBRA','CAPRICORNIO','GEMINIS','ESCORPIO','TAURO','CANCER','LEO','PISCIS'];
+      const a={
+        id: Math.random().toString(16).slice(2,8),
+        ts: Date.now(),
+        nivel: rand(niveles),
+        tipo: 'SIMULADO',
+        titulo: rand(tipos),
+        agente: rand(agentes),
+        lat: (-16 + Math.random()).toFixed(4),
+        lng: (-68 + Math.random()).toFixed(4)
+      };
+      state.alerts.unshift(a);
+      state.alerts = state.alerts.slice(0,200);
+      render();
+    }
+
+    // --- render alertas
+    function renderAlertList(){
+      const list = $('#alertList');
+      list.innerHTML = state.alerts.slice(0,50).map(a=>{
+        const badgeCls = a.nivel==='ALTA'?'chip--danger':(a.nivel==='MEDIA'?'chip--warn':'chip--ok');
+        return \`<div class="item">
+          <div class="row" style="justify-content:space-between">
+            <div class="row" style="gap:.5rem;align-items:center">
+              <span class="chip \${badgeCls}">\${a.nivel}</span>
+              <strong>\${fmtDate(a.ts)}</strong>
+            </div>
+            <span class="pill">SIMULADO</span>
+          </div>
+          <div> <strong>\${a.agente}</strong> — \${a.titulo} <span class="muted">( \${a.lat}, \${a.lng} )</span></div>
+        </div>\`;
+      }).join('');
+      $('#badgeQty').textContent = state.alerts.length;
+      // tabla 10
+      const tbody = $('#tabla10 tbody');
+      tbody.innerHTML = state.alerts.slice(0,10).map(a=>\`
+        <tr><td>\${a.id}</td><td>\${fmtDate(a.ts)}</td><td>\${a.nivel}</td><td>\${a.titulo}</td><td>\${a.agente}</td></tr>\`
+      ).join('');
+    }
+
+    // --- export PDF (simple HTML + print)
+    $('#btnExport').onclick = ()=>{
+      const now = new Date();
+      const rows = state.alerts.slice(0,50).map(a=>\`
+        <tr><td>\${a.id}</td><td>\${fmtDate(a.ts)}</td><td>\${a.nivel}</td><td>\${a.titulo}</td><td>\${a.agente}</td></tr>\`).join('');
+      const html = \`
+      <html><head><meta charset='utf-8'><title>Reporte de Alertas</title>
+      <style>
+        body{font:12px Arial;padding:24px}
+        table{border-collapse:collapse;width:100%}
+        th,td{border:1px solid #c7d2fe;padding:6px;text-align:left}
+        thead{background:#1e60a1;color:#fff}
+        .hdr{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+        .hdr img{height:44px}
+      </style></head>
+      <body>
+        <div class="hdr">
+          <img src="assets/logo.png"/><div>
+            <div style="font-weight:800;font-size:18px">CIE-297 – Reporte de Alertas</div>
+            <div>\${fmtDate(Date.now())}</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Fecha y hora</th><th>Nivel</th><th>Título</th><th>Agente</th></tr></thead>
+          <tbody>\${rows}</tbody>
+        </table>
+      </body></html>\`;
+      const w = window.open('','_blank'); w.document.write(html); w.document.close(); w.focus(); w.print();
+    };
+
+    // --- Ver todas (agrupadas por día)
+    $('#btnVerTodas').onclick = ()=>{
+      const porDia = {};
+      state.alerts.forEach(a=>{
+        const d = new Date(a.ts).toISOString().slice(0,10);
+        (porDia[d]||(porDia[d]=[])).push(a);
+      });
+      const w = window.open('','_blank'); w.document.write('<meta charset=utf-8><title>Alertas por día</title><style>body{font:14px Arial;padding:16px}h2{margin:10px 0}</style>');
+      Object.keys(porDia).sort().reverse().forEach(d=>{
+        w.document.write('<h2>'+d+'</h2><ul>');
+        porDia[d].forEach(a=> w.document.write('<li>'+fmtDate(a.ts)+' — '+a.nivel+' — '+a.titulo+' — '+a.agente+'</li>') );
+        w.document.write('</ul>');
+      });
+      w.document.close();
+    };
+
+    // --- Accesos (simple)
+    $('#btnAccesos').onclick = ()=>{
+      const rows = state.accesses.slice(-100).reverse().map((a,i)=>{
+        return \`<tr><td>\${i+1}</td><td>\${a.email}</td><td>\${fmtDate(a.at)}</td><td>\${a.blocked?'BLOQUEADO':'OK'}</td></tr>\`;
+      }).join('');
+      const html = \`
+        <html><head><meta charset='utf-8'><title>Accesos</title>
+        <style>body{font:13px Arial;padding:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:6px}</style>
+        </head><body><h2>Accesos recientes</h2><table><thead><tr><th>#</th><th>Usuario</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>\${rows}</tbody></table></body></html>\`;
+      const w=window.open('','_blank'); w.document.write(html); w.document.close();
+    };
+
+    // --- enviar reporte rápido (se agrega como alerta)
+    $('#btnEnviar').onclick = ()=>{
+      if(!state.me) return toast('Inicia sesión primero');
+      const a={
+        id: Math.random().toString(16).slice(2,8),
+        ts: Date.now(),
+        nivel: $('#repNivel').value,
+        tipo: $('#repTipo').value,
+        titulo: $('#repMsg').value,
+        agente: $('#orgLlamada').value,
+        lat: $('#repLat').value || (-16.5 + Math.random()).toFixed(4),
+        lng: $('#repLng').value || (-68.15 + Math.random()).toFixed(4)
+      };
+      state.alerts.unshift(a); render();
+      toast('Reporte registrado');
+    };
+
+    // usar ubicación
+    $('#btnLoc').onclick = ()=>{
+      if(!navigator.geolocation) return toast('Geolocalización no disponible');
+      navigator.geolocation.getCurrentPosition(p=>{
+        const {latitude, longitude}=p.coords;
+        $('#repLat').value = latitude.toFixed(6);
+        $('#repLng').value = longitude.toFixed(6);
+        if(map){ map.setView([latitude, longitude], 12); if(marker) map.removeLayer(marker); marker=L.marker([latitude,longitude]).addTo(map); }
+      },()=>toast('No se pudo obtener ubicación'));
+    };
+
+    // --- render
+    function render(){
+      renderAlertList();
+      $('#orgCount').textContent = '4 activos';
+    }
+
+    // --- boot
+    initMap();
+    // simulación de alertas en tiempo real
+    setInterval(addFakeAlert, 5000);
+    addFakeAlert(); addFakeAlert(); addFakeAlert();
+    // mostrar login al entrar
+    dlg.style.display='grid';
+  </script>
 </body>
 </html>
