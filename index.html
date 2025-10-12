@@ -6,7 +6,6 @@
 <title>CIE-297 | Monitoreo en Tiempo Real</title>
 <link rel="icon" href="assets/logo.png" />
 
-<!-- (NUEVO) Leaflet CSS para el mapa -->
 <link
   rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -60,11 +59,9 @@ td{color:#dbe8ff}
 .alert .title{font-weight:700;margin-top:.35rem}
 .alert small{color:var(--muted)}
 /* Modal */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:5000} /* <- aumentado */
 .modal.open{display:flex}
-.sheet{width:min(980px,92vw);max-height:88vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
-.sheet h3{margin:0 0 12px 0}
-.sheet .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.sheet{width:min(980px,92vw);max-height:88vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;z-index:6000;position:relative} /* <- z-index alto */
 /* Login sheet smaller */
 .sheet-sm{width:min(820px,92vw)}
 /* Sticky right column tools */
@@ -251,36 +248,23 @@ footer{color:#a2b7dc;text-align:center;padding:24px 0;opacity:.85}
 /* ======= STATE ======= */
 const state = {
   logged:false, admin:false, user:null,
-  seqId: 10000,                 // integer incremental IDs
-  alerts: [],                   // {id:int, ts:Date, nivel, titulo, agente, lat,lng}
-  access: [],                   // {ts, email, blocked?}
-  blocked: {}                   // email:boolean
+  seqId: 10000,
+  alerts: [],
+  access: [],
+  blocked: {}
 };
 
 const CALLSIGNS = ["ZEUS","ARIES","VIRGO","SAGITARIO","LIBRA","CAPRICORNIO","GEMINIS","ESCORPIO","TAURO","CANCER","LEO","PISCIS"];
 const TITULOS = ["ACTUALIZACIÓN DE POSICIÓN","INTERFERENCIA RF","MOVIMIENTO ANÓMALO","GEOCERCA VIOLADA","OBSERVACIÓN"];
 const NIVELES = ["BAJA","MEDIA","ALTA"];
 
-/* ======= HELPERS ======= */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
-const fmtDT = d => {
-  const tz = new Intl.DateTimeFormat("es-BO",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  return tz.format(d);
-};
-function badgeNivel(n){
-  const cls = n==="ALTA"?"chip chip-alta":(n==="MEDIA"?"chip chip-media":"chip chip-baja");
-  return `<span class="${cls}">${n}</span>`;
-}
+const fmtDT = d => new Intl.DateTimeFormat("es-BO",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(d);
+function badgeNivel(n){ const cls = n==="ALTA"?"chip chip-alta":(n==="MEDIA"?"chip chip-media":"chip chip-baja"); return `<span class="${cls}">${n}</span>`; }
 
-/* ======= RENDER ======= */
-function renderAppVisible(){
-  $("#app").style.display = "block";
-  $("#btnOpenLogin").style.display="none";
-  $("#btnLogout").style.display="";
-}
+function renderAppVisible(){ $("#app").style.display = "block"; $("#btnOpenLogin").style.display="none"; $("#btnLogout").style.display=""; }
 function renderAlerts(){
-  // right column
   const col = $("#alertsCol");
   col.innerHTML = state.alerts.slice(-50).reverse().map(a=>`
     <div class="alert">
@@ -290,23 +274,12 @@ function renderAlerts(){
       </div>
       <div class="title">${a.titulo}</div>
       <small>Lat/Lng: ${a.lat.toFixed(4)}, ${a.lng.toFixed(4)}</small>
-    </div>
-  `).join("");
-  // table 10 recientes
+    </div>`).join("");
   const tbody = $("#tablaRecientes tbody");
   const arr = state.alerts.slice(-10).reverse();
-  tbody.innerHTML = arr.map(a=>`
-    <tr>
-      <td>${a.id}</td>
-      <td>${fmtDT(new Date(a.ts))}</td>
-      <td>${a.nivel}</td>
-      <td>${a.titulo}</td>
-      <td>${a.agente}</td>
-    </tr>
-  `).join("");
+  tbody.innerHTML = arr.map(a=>`<tr><td>${a.id}</td><td>${fmtDT(new Date(a.ts))}</td><td>${a.nivel}</td><td>${a.titulo}</td><td>${a.agente}</td></tr>`).join("");
 }
 
-/* ======= MODALS ======= */
 const mLogin = $("#mLogin");
 $("#btnOpenLogin").onclick=()=>mLogin.classList.add("open");
 $("#btnCloseLogin").onclick=()=>mLogin.classList.remove("open");
@@ -316,35 +289,22 @@ function openSheet(html){ sheet.innerHTML=html; modal.classList.add("open"); }
 function closeSheet(){ modal.classList.remove("open"); sheet.innerHTML=""; }
 modal.addEventListener("click", e=>{ if(e.target===modal) closeSheet(); });
 
-/* ======= AUTH (IN-MEMORY) ======= */
-function addAccess(email){
-  state.access.push({ts:Date.now(), email, blocked: !!state.blocked[email]});
-}
+function addAccess(email){ state.access.push({ts:Date.now(), email, blocked: !!state.blocked[email]}); }
 $("#btnEntrar").onclick=()=>{
   const email = $("#lgEmail").value.trim();
   const pass  = $("#lgPass").value.trim();
   if(state.blocked[email]){ alert("Tu acceso está bloqueado."); return; }
-  // only one admin credential shortcut (como antes)
   if(email==="admin@cie297.mil" && pass==="Admin123!"){
     state.logged = true; state.admin = true; state.user = {email};
-    addAccess(email);
-    mLogin.classList.remove("open");
-    renderAppVisible();
-    return;
+    addAccess(email); mLogin.classList.remove("open"); renderAppVisible(); return;
   }
   if(!email || !pass){ alert("Completa email y contraseña"); return; }
   state.logged=true; state.admin=false; state.user={email};
-  addAccess(email);
-  mLogin.classList.remove("open");
-  renderAppVisible();
+  addAccess(email); mLogin.classList.remove("open"); renderAppVisible();
 };
-$("#btnCrear").onclick=()=>{
-  const email=$("#rgEmail").value.trim(); if(!email){ alert("Email requerido"); return; }
-  alert("Cuenta creada: "+email+". Ahora pulsa Iniciar sesión.");
-};
+$("#btnCrear").onclick=()=>{ const email=$("#rgEmail").value.trim(); if(!email){ alert("Email requerido"); return; } alert("Cuenta creada: "+email+". Ahora pulsa Iniciar sesión."); };
 $("#btnLogout").onclick=()=>{ location.reload(); };
 
-/* ======= REPORTES ======= */
 $("#btnUbic").onclick=()=>{
   if(!navigator.geolocation){ alert("Sin geolocalización"); return; }
   navigator.geolocation.getCurrentPosition(pos=>{
@@ -365,7 +325,6 @@ $("#btnEnviar").onclick=()=>{
   alert("Reporte registrado.");
 };
 
-/* ======= SIMULADOR ======= */
 function pushSim(){
   if(!state.logged) return;
   const id=++state.seqId;
@@ -379,13 +338,9 @@ function pushSim(){
 }
 setInterval(pushSim, 5000);
 
-/* ======= ADMIN TOOLS ======= */
 $("#btnVerTodas").onclick=()=>{
   const porDia = {};
-  state.alerts.forEach(a=>{
-    const d = new Date(a.ts).toISOString().slice(0,10);
-    (porDia[d]||(porDia[d]=[])).push(a);
-  });
+  state.alerts.forEach(a=>{ const d = new Date(a.ts).toISOString().slice(0,10); (porDia[d]||(porDia[d]=[])).push(a); });
   const html = `
     <h3>Alertas por día</h3>
     <div class="grid">
@@ -401,11 +356,9 @@ $("#btnVerTodas").onclick=()=>{
                 <tr><td>${a.id}</td><td>${fmtDT(new Date(a.ts))}</td><td>${a.nivel}</td><td>${a.titulo}</td><td>${a.agente}</td></tr>`).join("")}
             </tbody>
           </table>
-        </div>
-      `).join("")}
+        </div>`).join("")}
     </div>
-    <div class="foot"><button class="btn" onclick="document.querySelector('#modal').classList.remove('open')">Cerrar</button></div>
-  `;
+    <div class="foot"><button class="btn" onclick="document.querySelector('#modal').classList.remove('open')">Cerrar</button></div>`;
   openSheet(html);
 };
 
@@ -427,12 +380,10 @@ $("#btnAccesos").onclick=()=>{
                 document.querySelector('#btnAccesos').click(); 
               })('${x.email||""}')">${state.blocked[x.email]?"Desbloquear":"Bloquear"}</button>
           </td>
-        </tr>
-      `).join("")}
+        </tr>`).join("")}
       </tbody>
     </table>
-    <div class="foot"><button class="btn" onclick="document.querySelector('#modal').classList.remove('open')">Cerrar</button></div>
-  `;
+    <div class="foot"><button class="btn" onclick="document.querySelector('#modal').classList.remove('open')">Cerrar</button></div>`;
   openSheet(html);
 };
 
@@ -476,55 +427,38 @@ $("#btnExportar").onclick=()=>{
   w.document.write(html); w.document.close(); w.focus(); w.print();
 };
 
-/* Start at login */
 mLogin.classList.add("open");
 </script>
 
-<!-- (NUEVO) Leaflet JS -->
 <script
   src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""
 ></script>
 
-<!-- (NUEVO) Inicialización del mapa SIN tocar tu código existente -->
 <script>
 (function(){
   let map;
   function initMap(){
     if (map || !document.getElementById('map')) return;
-    // limpiar el placeholder
     const cont = document.getElementById('map');
     cont.innerHTML = '';
     cont.style.borderStyle = 'solid';
-
-    map = L.map('map', { zoomControl: true })
-            .setView([-16.5, -68.15], 6);
+    map = L.map('map', { zoomControl: true }).setView([-16.5, -68.15], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap'
+      maxZoom: 19, attribution: '&copy; OpenStreetMap'
     }).addTo(map);
-
-    // Primer ajuste de tamaño (por layout oculto/visible)
     setTimeout(()=> map.invalidateSize(), 300);
   }
-
-  // Intento inicial (por si ya está visible)
   document.addEventListener('DOMContentLoaded', initMap);
-
-  // Parche: cuando tu app se vuelve visible al iniciar sesión,
-  // re-inicializamos/ajustamos tamaño sin cambiar tu función original.
   const _render = window.renderAppVisible;
   if (typeof _render === 'function') {
     window.renderAppVisible = function(){
       _render();
       initMap();
-      // reajuste tras mostrar contenedor
       setTimeout(()=> { if (map) map.invalidateSize(); }, 50);
     };
   }
-
-  // Botón "Usar ubicación": además de llenar inputs, centra el mapa
   const geoBtn = document.getElementById('btnUbic');
   if (geoBtn) {
     geoBtn.addEventListener('click', () => {
@@ -533,10 +467,11 @@ mLogin.classList.add("open");
         const { latitude, longitude } = pos.coords;
         map.setView([latitude, longitude], 14);
         L.marker([latitude, longitude]).addTo(map);
-      }, ()=>{ /* silencioso */ });
+      }, ()=>{});
     });
   }
 })();
 </script>
 </body>
 </html>
+
