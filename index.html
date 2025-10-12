@@ -381,5 +381,62 @@ Q('#btnVerTodas').onclick=()=>{
 // start hidden
 Q('#access').style.display='block';
 </script>
+
+<script>
+(function(){ 
+  try {
+    const t = Array.from(document.querySelectorAll('h1,h2,h3,h4')).find(el => (el.textContent||'').trim().toLowerCase() === 'órganos de búsqueda');
+    if (t) {
+      // Find container body
+      let box = t.closest('.card') || t.parentElement;
+      let body = box && (box.querySelector('.card-body') || box.querySelector('.body') || t.nextElementSibling) || t.parentElement;
+      if (body) {
+        body.innerHTML = `
+          <div id="orgs-dropdowns" class="grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;">
+            <div>
+              <label style="display:block;margin-bottom:.35rem;opacity:.85;">Código indicativo del lugar</label>
+              <select id="orgLugar" class="control">
+                <option>HAWAI</option>
+                <option>CUBA</option>
+                <option>BEIRUT</option>
+                <option>LOMAS</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:.35rem;opacity:.85;">Código indicativo de canales</label>
+              <select id="orgCanal" class="control">
+                <option>BLANCO</option>
+                <option>ROJO</option>
+                <option>AZUL</option>
+                <option>AMARILLO</option>
+                <option>VERDE</option>
+                <option>ROSADO</option>
+                <option>GUINDO</option>
+                <option>CARMESI</option>
+                <option>NEGRO</option>
+                <option>KAKI</option>
+                <option>MARRON</option>
+                <option>TURQUESA</option>
+                <option>CELESTE</option>
+                <option>NARANJA</option>
+                <option>PURPURA</option>
+                <option>GRIS</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:.35rem;opacity:.85;">Código indicativo de llamadas</label>
+              <select id="orgLlamada" class="control">
+                <option>ZEUS</option><option>ARIES</option><option>VIRGO</option><option>SAGITARIO</option>
+                <option>LIBRA</option><option>CAPRICORNIO</option><option>GEMINIS</option><option>ESCORPIO</option>
+                <option>TAURO</option><option>CANCER</option><option>LEO</option><option>PISCIS</option>
+              </select>
+            </div>
+          </div>`;
+      }
+    }
+  } catch(e) { console.warn('Org section replace failed', e); }
+})();
+</script>
+
 </body>
 </html>
